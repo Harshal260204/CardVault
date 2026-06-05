@@ -1,8 +1,8 @@
 # CardVault Web (Admin)
 
-Next.js 14 app for **managers** and **super admins** only — dashboard, org contacts, users, audit log, exports.
+Next.js 14 app for **managers**, **tenant admins**, and **platform admins** — dashboard, analytics, contacts, sessions, users, audit, exports, and billing.
 
-Field sales use the **MOBILE** app (`employee` role).
+Field sales (`employee` role) are redirected to use the **MOBILE** app.
 
 ## Setup
 
@@ -17,18 +17,26 @@ npm run dev
 
 ## Demo login
 
-| Email | Password | Role |
-|-------|----------|------|
-| manager@cardvault.local | Password123! | manager |
-| admin@cardvault.local | Password123! | super_admin |
+Password: `Password123!`
+
+| Email | Role |
+|-------|------|
+| manager@cardvault.local | manager |
+| admin@cardvault.local | platform_super_admin |
 
 Open http://localhost:3000 → redirects to `/admin/dashboard`.
 
 ## Routes
 
-- `/login` — admin sign-in
-- `/admin/dashboard` — stats and charts
-- `/admin/contacts` — org-wide contact table
-- `/admin/users` — user management
-- `/admin/audit-log` — audit events
-- `/admin/export` — export jobs and download
+| Route | Purpose |
+|-------|---------|
+| `/login` | Admin sign-in |
+| `/admin/dashboard` | Stats and overview |
+| `/admin/analytics` | Lead funnel, encounter types, session metrics |
+| `/admin/contacts` | Org-wide contact list and detail |
+| `/admin/sessions` | Event session management |
+| `/admin/users` | User management |
+| `/admin/audit-log` | Audit events |
+| `/admin/export` | Export jobs and download |
+| `/admin/billing` | Subscription and Stripe portal |
+| `/admin/organizations` | Platform super admin — all tenants |
