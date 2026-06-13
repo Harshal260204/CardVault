@@ -44,7 +44,7 @@ If you added dependencies while `npm run dev` was already running, **restart the
 
 ### Do not use `db:push` on shared, staging, or production databases
 
-`prisma db push` applies schema changes directly but **does not write to `_prisma_migrations`**. When the repo adds a new migration (for example `20260605120000_add_expo_push_token` adding `users.expo_push_token`), a database that was only ever `db push`ed will miss that column and fail at runtime with errors like:
+`prisma db push` applies schema changes directly but **does not write to `_prisma_migrations`**. When the repo schema adds columns (for example `users.expo_push_token`), a database that was only ever `db push`ed will miss those columns and fail at runtime with errors like:
 
 `The column users.expo_push_token does not exist in the current database.`
 
@@ -83,14 +83,7 @@ If you already have tables from `db:push` and `migrate deploy` reports conflicts
 
 ```powershell
 cd API
-node scripts/with-database-url.cjs migrate resolve --applied 20260522000000_baseline
-node scripts/with-database-url.cjs migrate resolve --applied 20260523120000_saas_foundation
-node scripts/with-database-url.cjs migrate resolve --applied 20260523130000_rls_policies
-node scripts/with-database-url.cjs migrate resolve --applied 20260525190000_add_plans_table
-node scripts/with-database-url.cjs migrate resolve --applied 20260526180000_split_roles_and_rtr
-node scripts/with-database-url.cjs migrate resolve --applied 20260526190000_active_rls_policies
-node scripts/with-database-url.cjs migrate resolve --applied 20260605120000_add_expo_push_token
-npm run db:migrate:deploy
+node scripts/with-database-url.cjs migrate resolve --applied 20260614000000_init
 npm run db:seed
 ```
 

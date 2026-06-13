@@ -19,6 +19,7 @@ export const DESIGN = {
 } as const;
 
 export const STORAGE_KEYS = {
-  /** UI-only persisted profile hint; tokens live in httpOnly cookies. */
+  ACCESS_TOKEN: 'cardvault_access_token',
+  REFRESH_TOKEN: 'cardvault_refresh_token',
   USER: 'cardvault_user',
 } as const;

@@ -1,4 +1,9 @@
-import axios, { type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
+import axios, {
+  type AxiosError,
+  type AxiosInstance,
+  type InternalAxiosRequestConfig,
+} from 'axios';
+
 import { API_BASE_PATH } from '@/lib/constants';
 import type {
   ApiResponse,
@@ -22,6 +27,8 @@ import type { ContactSearchParams } from '@/lib/validation';
 
 export interface ApiClientConfig {
   baseURL: string;
+  /** When true, baseURL is the BFF proxy prefix and paths omit `/api/v1`. */
+  useBffProxy?: boolean;
   getAccessToken?: () => string | null;
   getRefreshToken?: () => string | null;
   onTokensRefreshed?: (access: string, refresh: string) => void;
@@ -29,8 +36,13 @@ export interface ApiClientConfig {
 }
 
 export function createApiClient(config: ApiClientConfig): AxiosInstance {
+  const origin = (config.baseURL ?? '').replace(/\/$/, '');
+  if (!origin) {
+    throw new Error('createApiClient: baseURL is required');
+  }
+
   const client = axios.create({
-    baseURL: `${config.baseURL.replace(/\/$/, '')}${API_BASE_PATH}`,
+    baseURL: config.useBffProxy ? origin : `${origin}${API_BASE_PATH}`,
     timeout: 30_000,
     headers: { 'Content-Type': 'application/json' },
   });
@@ -44,39 +56,69 @@ export function createApiClient(config: ApiClientConfig): AxiosInstance {
     return req;
   });
 
-  let refreshPromise: Promise<string | null> | null = null;
+  let refreshPromise: Promise<boolean> | null = null;
 
   client.interceptors.response.use(
     (res) => res,
     async (error: AxiosError) => {
-      const original = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+      const original = error.config as InternalAxiosRequestConfig & {
+        _retry?: boolean;
+      };
       if (error.response?.status === 401 && original && !original._retry) {
         original._retry = true;
-        const refresh = config.getRefreshToken?.();
-        if (refresh) {
-          refreshPromise ??= client
-            .post<ApiResponse<{ accessToken: string; refreshToken: string }>>('/auth/refresh', {
-              refreshToken: refresh,
-            })
-            .then((r) => {
-              const tokens = r.data.data;
-              config.onTokensRefreshed?.(tokens.accessToken, tokens.refreshToken);
-              return tokens.accessToken;
-            })
+
+        if (config.useBffProxy) {
+          refreshPromise ??= axios
+            .post<ApiResponse<{ ok: true }>>(
+              '/api/auth/refresh',
+              {},
+              { withCredentials: true },
+            )
+            .then(() => true)
             .catch(() => {
               config.onUnauthorized?.();
-              return null;
+              return false;
             })
             .finally(() => {
               refreshPromise = null;
             });
-          const newToken = await refreshPromise;
-          if (newToken) {
-            original.headers.Authorization = `Bearer ${newToken}`;
+          const refreshed = await refreshPromise;
+          if (refreshed) {
             return client(original);
           }
         } else {
-          config.onUnauthorized?.();
+          const refresh = config.getRefreshToken?.();
+          if (refresh) {
+            refreshPromise ??= client
+              .post<ApiResponse<{ accessToken: string; refreshToken: string }>>(
+                '/auth/refresh',
+                {
+                  refreshToken: refresh,
+                },
+              )
+              .then((r) => {
+                const tokens = r.data.data;
+                config.onTokensRefreshed?.(
+                  tokens.accessToken,
+                  tokens.refreshToken,
+                );
+                original.headers.Authorization = `Bearer ${tokens.accessToken}`;
+                return true;
+              })
+              .catch(() => {
+                config.onUnauthorized?.();
+                return false;
+              })
+              .finally(() => {
+                refreshPromise = null;
+              });
+            const refreshed = await refreshPromise;
+            if (refreshed) {
+              return client(original);
+            }
+          } else {
+            config.onUnauthorized?.();
+          }
         }
       }
       return Promise.reject(error);
@@ -86,7 +128,9 @@ export function createApiClient(config: ApiClientConfig): AxiosInstance {
   return client;
 }
 
-export async function healthCheck(client: AxiosInstance): Promise<HealthStatus> {
+export async function healthCheck(
+  client: AxiosInstance,
+): Promise<HealthStatus> {
   const { data } = await client.get<ApiResponse<HealthStatus>>('/health');
   return data.data;
 }
@@ -96,7 +140,10 @@ export async function login(
   email: string,
   password: string,
 ): Promise<LoginResponse> {
-  const { data } = await client.post<ApiResponse<LoginResponse>>('/auth/login', { email, password });
+  const { data } = await client.post<ApiResponse<LoginResponse>>(
+    '/auth/login',
+    { email, password },
+  );
   return data.data;
 }
 
@@ -104,14 +151,18 @@ export async function logout(
   client: AxiosInstance,
   refreshToken?: string | null,
 ): Promise<void> {
-  await client.post('/auth/logout', { refreshToken: refreshToken ?? undefined });
+  await client.post('/auth/logout', {
+    refreshToken: refreshToken ?? undefined,
+  });
 }
 
 export async function fetchContacts(
   client: AxiosInstance,
   params?: ContactSearchParams,
 ): Promise<PaginatedList<ContactRecord>> {
-  const { data } = await client.get<ApiResponse<ContactRecord[]>>('/contacts', { params });
+  const { data } = await client.get<ApiResponse<ContactRecord[]>>('/contacts', {
+    params,
+  });
   return {
     items: data.data,
     meta: {
@@ -126,7 +177,9 @@ export async function fetchContact(
   client: AxiosInstance,
   id: string,
 ): Promise<ContactRecord> {
-  const { data } = await client.get<ApiResponse<ContactRecord>>(`/contacts/${id}`);
+  const { data } = await client.get<ApiResponse<ContactRecord>>(
+    `/contacts/${id}`,
+  );
   return data.data;
 }
 
@@ -134,7 +187,9 @@ export async function deleteContact(
   client: AxiosInstance,
   id: string,
 ): Promise<{ id: string; deleted: true }> {
-  const { data } = await client.delete<ApiResponse<{ id: string; deleted: true }>>(`/contacts/${id}`);
+  const { data } = await client.delete<
+    ApiResponse<{ id: string; deleted: true }>
+  >(`/contacts/${id}`);
   return data.data;
 }
 
@@ -142,7 +197,9 @@ export async function fetchSession(
   client: AxiosInstance,
   id: string,
 ): Promise<EventSessionRecord> {
-  const { data } = await client.get<ApiResponse<EventSessionRecord>>(`/sessions/${id}`);
+  const { data } = await client.get<ApiResponse<EventSessionRecord>>(
+    `/sessions/${id}`,
+  );
   return data.data;
 }
 
@@ -150,7 +207,9 @@ export async function closeSession(
   client: AxiosInstance,
   id: string,
 ): Promise<EventSessionRecord> {
-  const { data } = await client.post<ApiResponse<EventSessionRecord>>(`/sessions/${id}/close`);
+  const { data } = await client.post<ApiResponse<EventSessionRecord>>(
+    `/sessions/${id}/close`,
+  );
   return data.data;
 }
 
@@ -182,7 +241,10 @@ export async function fetchSessions(
   client: AxiosInstance,
   params?: { page?: number; limit?: number; status?: string },
 ): Promise<PaginatedList<EventSessionRecord>> {
-  const { data } = await client.get<ApiResponse<EventSessionRecord[]>>('/sessions', { params });
+  const { data } = await client.get<ApiResponse<EventSessionRecord[]>>(
+    '/sessions',
+    { params },
+  );
   return {
     items: data.data,
     meta: {
@@ -212,7 +274,10 @@ export async function createContact(
   client: AxiosInstance,
   payload: CreateContactPayload,
 ): Promise<ContactRecord> {
-  const { data } = await client.post<ApiResponse<ContactRecord>>('/contacts', payload);
+  const { data } = await client.post<ApiResponse<ContactRecord>>(
+    '/contacts',
+    payload,
+  );
   return data.data;
 }
 
@@ -221,12 +286,18 @@ export async function updateContact(
   id: string,
   payload: Partial<CreateContactPayload>,
 ): Promise<ContactRecord> {
-  const { data } = await client.patch<ApiResponse<ContactRecord>>(`/contacts/${id}`, payload);
+  const { data } = await client.patch<ApiResponse<ContactRecord>>(
+    `/contacts/${id}`,
+    payload,
+  );
   return data.data;
 }
 
 export async function fetchMe(client: AxiosInstance): Promise<UserProfile> {
   const { data } = await client.get<ApiResponse<UserProfile>>('/auth/me');
+  if (!data?.data) {
+    throw new Error('Profile response missing user data');
+  }
   return data.data;
 }
 
@@ -246,17 +317,28 @@ export async function submitOcrJob(
   if (payload.sessionId) {
     form.append('sessionId', payload.sessionId);
   }
-  const { data } = await client.post<ApiResponse<OcrJobRecord>>('/ocr/jobs', form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  const { data } = await client.post<ApiResponse<OcrJobRecord>>(
+    '/ocr/jobs',
+    form,
+    {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    },
+  );
   return data.data;
 }
 
 export async function fetchOcrJobs(
   client: AxiosInstance,
-  params?: { page?: number; limit?: number; needsReview?: boolean; status?: string },
+  params?: {
+    page?: number;
+    limit?: number;
+    needsReview?: boolean;
+    status?: string;
+  },
 ): Promise<PaginatedList<OcrJobRecord>> {
-  const { data } = await client.get<ApiResponse<OcrJobRecord[]>>('/ocr/jobs', { params });
+  const { data } = await client.get<ApiResponse<OcrJobRecord[]>>('/ocr/jobs', {
+    params,
+  });
   return {
     items: data.data,
     meta: {
@@ -267,8 +349,13 @@ export async function fetchOcrJobs(
   };
 }
 
-export async function fetchOcrJob(client: AxiosInstance, id: string): Promise<OcrJobRecord> {
-  const { data } = await client.get<ApiResponse<OcrJobRecord>>(`/ocr/jobs/${id}`);
+export async function fetchOcrJob(
+  client: AxiosInstance,
+  id: string,
+): Promise<OcrJobRecord> {
+  const { data } = await client.get<ApiResponse<OcrJobRecord>>(
+    `/ocr/jobs/${id}`,
+  );
   return data.data;
 }
 
@@ -286,10 +373,9 @@ export async function confirmOcrJob(
     linkToContactId?: string;
   },
 ): Promise<{ job: OcrJobRecord; contact: ContactRecord }> {
-  const { data } = await client.post<ApiResponse<{ job: OcrJobRecord; contact: ContactRecord }>>(
-    `/ocr/jobs/${id}/confirm`,
-    payload,
-  );
+  const { data } = await client.post<
+    ApiResponse<{ job: OcrJobRecord; contact: ContactRecord }>
+  >(`/ocr/jobs/${id}/confirm`, payload);
   return data.data;
 }
 
@@ -308,15 +394,25 @@ export async function mergeContacts(
 export async function fetchDashboard(
   client: AxiosInstance,
 ): Promise<DashboardStats> {
-  const { data } = await client.get<ApiResponse<DashboardStats>>('/admin/dashboard');
+  const { data } =
+    await client.get<ApiResponse<DashboardStats>>('/admin/dashboard');
   return data.data;
 }
 
 export async function fetchAuditEvents(
   client: AxiosInstance,
-  params?: { page?: number; limit?: number; q?: string; eventType?: string; entityType?: string },
+  params?: {
+    page?: number;
+    limit?: number;
+    q?: string;
+    eventType?: string;
+    entityType?: string;
+  },
 ): Promise<PaginatedList<AuditEventRecord>> {
-  const { data } = await client.get<ApiResponse<AuditEventRecord[]>>('/audit-events', { params });
+  const { data } = await client.get<ApiResponse<AuditEventRecord[]>>(
+    '/audit-events',
+    { params },
+  );
   return {
     items: data.data,
     meta: {
@@ -331,7 +427,10 @@ export async function fetchExports(
   client: AxiosInstance,
   params?: { page?: number; limit?: number },
 ): Promise<PaginatedList<ExportJobRecord>> {
-  const { data } = await client.get<ApiResponse<ExportJobRecord[]>>('/exports', { params });
+  const { data } = await client.get<ApiResponse<ExportJobRecord[]>>(
+    '/exports',
+    { params },
+  );
   return {
     items: data.data,
     meta: {
@@ -351,7 +450,10 @@ export async function createExportJob(
     captureMode?: string;
   },
 ): Promise<ExportJobRecord> {
-  const { data } = await client.post<ApiResponse<ExportJobRecord>>('/exports', payload);
+  const { data } = await client.post<ApiResponse<ExportJobRecord>>(
+    '/exports',
+    payload,
+  );
   return data.data;
 }
 
@@ -360,15 +462,26 @@ export async function updateOrgUser(
   id: string,
   payload: { fullName?: string; role?: UserRole; isActive?: boolean },
 ): Promise<OrgUserRecord> {
-  const { data } = await client.patch<ApiResponse<OrgUserRecord>>(`/users/${id}`, payload);
+  const { data } = await client.patch<ApiResponse<OrgUserRecord>>(
+    `/users/${id}`,
+    payload,
+  );
   return data.data;
 }
 
 export async function fetchOrgUsers(
   client: AxiosInstance,
-  params?: { page?: number; limit?: number; role?: string; q?: string; organizationId?: string },
+  params?: {
+    page?: number;
+    limit?: number;
+    role?: string;
+    q?: string;
+    organizationId?: string;
+  },
 ): Promise<PaginatedList<OrgUserRecord>> {
-  const { data } = await client.get<ApiResponse<OrgUserRecord[]>>('/users', { params });
+  const { data } = await client.get<ApiResponse<OrgUserRecord[]>>('/users', {
+    params,
+  });
   return {
     items: data.data,
     meta: {
@@ -383,7 +496,9 @@ export async function deleteOrgUser(
   client: AxiosInstance,
   id: string,
 ): Promise<{ id: string; deleted: true }> {
-  const { data } = await client.delete<ApiResponse<{ id: string; deleted: true }>>(`/users/${id}`);
+  const { data } = await client.delete<
+    ApiResponse<{ id: string; deleted: true }>
+  >(`/users/${id}`);
   return data.data;
 }
 
@@ -407,8 +522,12 @@ export interface UpdateOrganizationPayload {
   isActive?: boolean;
 }
 
-export async function fetchOrganizations(client: AxiosInstance): Promise<OrganizationRecord[]> {
-  const { data } = await client.get<ApiResponse<OrganizationRecord[]>>('/admin/organizations');
+export async function fetchOrganizations(
+  client: AxiosInstance,
+): Promise<OrganizationRecord[]> {
+  const { data } = await client.get<ApiResponse<OrganizationRecord[]>>(
+    '/admin/organizations',
+  );
   return data.data;
 }
 
@@ -421,7 +540,10 @@ export async function createOrganization(
   client: AxiosInstance,
   payload: CreateOrganizationPayload,
 ): Promise<OrganizationRecord> {
-  const { data } = await client.post<ApiResponse<OrganizationRecord>>('/admin/organizations', payload);
+  const { data } = await client.post<ApiResponse<OrganizationRecord>>(
+    '/admin/organizations',
+    payload,
+  );
   return data.data;
 }
 
@@ -441,9 +563,9 @@ export async function deleteOrganization(
   client: AxiosInstance,
   id: string,
 ): Promise<{ id: string; deleted: true }> {
-  const { data } = await client.delete<ApiResponse<{ id: string; deleted: true }>>(
-    `/admin/organizations/${id}`,
-  );
+  const { data } = await client.delete<
+    ApiResponse<{ id: string; deleted: true }>
+  >(`/admin/organizations/${id}`);
   return data.data;
 }
 
@@ -452,8 +574,15 @@ export async function fetchLeadFunnel(
   organizationId?: string,
 ): Promise<{ hot: number; warm: number; cold: number; unqualified: number }> {
   const { data } = await client.get<
-    ApiResponse<{ hot: number; warm: number; cold: number; unqualified: number }>
-  >('/analytics/lead-funnel', { params: organizationId ? { organizationId } : undefined });
+    ApiResponse<{
+      hot: number;
+      warm: number;
+      cold: number;
+      unqualified: number;
+    }>
+  >('/analytics/lead-funnel', {
+    params: organizationId ? { organizationId } : undefined,
+  });
   return data.data;
 }
 
@@ -463,7 +592,9 @@ export async function fetchEncounterTypeAnalytics(
 ): Promise<Array<{ encounterType: string | null; count: number }>> {
   const { data } = await client.get<
     ApiResponse<Array<{ encounterType: string | null; count: number }>>
-  >('/analytics/encounter-types', { params: organizationId ? { organizationId } : undefined });
+  >('/analytics/encounter-types', {
+    params: organizationId ? { organizationId } : undefined,
+  });
   return data.data;
 }
 
@@ -495,7 +626,9 @@ export async function fetchSessionAnalytics(
         coldCount: number;
       }>
     >
-  >('/analytics/sessions', { params: organizationId ? { organizationId } : undefined });
+  >('/analytics/sessions', {
+    params: organizationId ? { organizationId } : undefined,
+  });
   return data.data;
 }
 
@@ -543,17 +676,17 @@ export async function createBillingCheckout(
   client: AxiosInstance,
   planCode: 'pro' = 'pro',
 ): Promise<{ url: string; sessionId: string }> {
-  const { data } = await client.post<ApiResponse<{ url: string; sessionId: string }>>(
-    '/billing/checkout',
-    { planCode },
-  );
+  const { data } = await client.post<
+    ApiResponse<{ url: string; sessionId: string }>
+  >('/billing/checkout', { planCode });
   return data.data;
 }
 
 export async function createBillingPortal(
   client: AxiosInstance,
 ): Promise<{ url: string }> {
-  const { data } = await client.post<ApiResponse<{ url: string }>>('/billing/portal');
+  const { data } =
+    await client.post<ApiResponse<{ url: string }>>('/billing/portal');
   return data.data;
 }
 

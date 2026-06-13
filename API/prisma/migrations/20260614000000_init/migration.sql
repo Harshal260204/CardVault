@@ -2,7 +2,7 @@
 CREATE SCHEMA IF NOT EXISTS "public";
 
 -- CreateEnum
-CREATE TYPE "UserRole" AS ENUM ('employee', 'manager', 'super_admin');
+CREATE TYPE "UserRole" AS ENUM ('employee', 'manager', 'tenant_admin', 'platform_support', 'platform_super_admin');
 
 -- CreateEnum
 CREATE TYPE "CaptureMode" AS ENUM ('visitor', 'exhibitor', 'quick_capture', 'legacy');
@@ -26,11 +26,26 @@ CREATE TYPE "SyncStatus" AS ENUM ('pending', 'processing', 'synced', 'conflict',
 CREATE TYPE "CardImageStatus" AS ENUM ('pending', 'confirmed', 'processing', 'ready', 'failed');
 
 -- CreateTable
+CREATE TABLE "plans" (
+    "id" UUID NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "price_inr" INTEGER NOT NULL DEFAULT 0,
+    "billing_interval" TEXT,
+    "description" TEXT,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "plans_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "organizations" (
     "id" UUID NOT NULL,
     "name" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
-    "plan" TEXT NOT NULL DEFAULT 'starter',
+    "plan" TEXT NOT NULL DEFAULT 'free',
     "settings" JSONB NOT NULL DEFAULT '{}',
     "max_users" INTEGER NOT NULL DEFAULT 50,
     "storage_quota_gb" INTEGER NOT NULL DEFAULT 10,
@@ -55,6 +70,7 @@ CREATE TABLE "users" (
     "role" "UserRole" NOT NULL DEFAULT 'employee',
     "is_active" BOOLEAN NOT NULL DEFAULT true,
     "last_active_at" TIMESTAMP(3),
+    "expo_push_token" TEXT,
     "invited_by" UUID,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
@@ -68,6 +84,7 @@ CREATE TABLE "auth_refresh_sessions" (
     "id" UUID NOT NULL,
     "user_id" UUID NOT NULL,
     "refresh_jti" UUID NOT NULL,
+    "parent_jti" UUID,
     "expires_at" TIMESTAMP(3) NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -337,6 +354,9 @@ CREATE TABLE "role_permissions" (
 );
 
 -- CreateIndex
+CREATE UNIQUE INDEX "plans_code_key" ON "plans"("code");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "organizations_slug_key" ON "organizations"("slug");
 
 -- CreateIndex
@@ -398,6 +418,9 @@ CREATE UNIQUE INDEX "sync_queue_client_idempotency_key_key" ON "sync_queue"("cli
 
 -- CreateIndex
 CREATE UNIQUE INDEX "role_permissions_organization_id_role_resource_action_key" ON "role_permissions"("organization_id", "role", "resource", "action");
+
+-- AddForeignKey
+ALTER TABLE "organizations" ADD CONSTRAINT "organizations_plan_fkey" FOREIGN KEY ("plan") REFERENCES "plans"("code") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "users" ADD CONSTRAINT "users_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -524,3 +547,151 @@ ALTER TABLE "contact_merge_history" ADD CONSTRAINT "contact_merge_history_revers
 
 -- AddForeignKey
 ALTER TABLE "role_permissions" ADD CONSTRAINT "role_permissions_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- ---------------------------------------------------------------------------
+-- Extensions, seeds, RLS, and manual FKs not generated from Prisma schema
+-- ---------------------------------------------------------------------------
+
+-- Relationship match FKs to ocr_jobs / contacts
+ALTER TABLE "relationship_matches" ADD CONSTRAINT "relationship_matches_incoming_ocr_job_id_fkey" FOREIGN KEY ("incoming_ocr_job_id") REFERENCES "ocr_jobs"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "relationship_matches" ADD CONSTRAINT "relationship_matches_matched_contact_id_fkey" FOREIGN KEY ("matched_contact_id") REFERENCES "contacts"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+CREATE INDEX "relationship_matches_incoming_ocr_job_id_idx" ON "relationship_matches"("incoming_ocr_job_id");
+CREATE INDEX "relationship_matches_matched_contact_id_idx" ON "relationship_matches"("matched_contact_id");
+
+-- Fuzzy name/company search (pg_trgm)
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE INDEX IF NOT EXISTS "idx_contacts_name_company_trgm" ON "contacts" USING GIN (
+  (coalesce("full_name", '') || ' ' || coalesce("company", '')) gin_trgm_ops
+);
+
+-- Seed default plans
+INSERT INTO "plans" (
+    "id",
+    "code",
+    "name",
+    "price_inr",
+    "billing_interval",
+    "description",
+    "is_active"
+) VALUES
+    (
+        '00000000-0000-4000-9000-000000000001',
+        'free',
+        'Free',
+        0,
+        NULL,
+        'Free plan for the entire CardVault product.',
+        true
+    ),
+    (
+        '00000000-0000-4000-9000-000000000002',
+        'pro',
+        'Pro',
+        99,
+        'monthly',
+        'Paid CardVault plan billed at 99 Rs per month.',
+        true
+    )
+ON CONFLICT ("code") DO UPDATE SET
+    "name" = EXCLUDED."name",
+    "price_inr" = EXCLUDED."price_inr",
+    "billing_interval" = EXCLUDED."billing_interval",
+    "description" = EXCLUDED."description",
+    "is_active" = EXCLUDED."is_active",
+    "updated_at" = CURRENT_TIMESTAMP;
+
+-- Row Level Security
+DO $$
+DECLARE
+  t text;
+BEGIN
+  FOR t IN SELECT unnest(ARRAY[
+    'organizations', 'users', 'contacts', 'contact_encounters', 'event_sessions',
+    'session_members', 'ocr_jobs', 'card_images', 'audit_events', 'exports',
+    'sync_queue', 'notifications', 'relationship_matches', 'contact_merge_history'
+  ])
+  LOOP
+    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
+  END LOOP;
+END $$;
+
+CREATE OR REPLACE FUNCTION current_org_id() RETURNS uuid AS $$
+  SELECT NULLIF(current_setting('app.current_org_id', true), '')::uuid;
+$$ LANGUAGE sql STABLE;
+
+CREATE OR REPLACE FUNCTION platform_bypass_rls() RETURNS boolean AS $$
+  SELECT COALESCE(current_setting('app.platform_bypass_rls', true), '') = 'true';
+$$ LANGUAGE sql STABLE;
+
+DROP POLICY IF EXISTS tenant_policy ON organizations;
+CREATE POLICY tenant_policy ON organizations FOR ALL
+  USING (platform_bypass_rls() OR id = current_org_id())
+  WITH CHECK (platform_bypass_rls() OR id = current_org_id());
+
+DROP POLICY IF EXISTS tenant_policy ON users;
+CREATE POLICY tenant_policy ON users FOR ALL
+  USING (platform_bypass_rls() OR organization_id = current_org_id())
+  WITH CHECK (platform_bypass_rls() OR organization_id = current_org_id());
+
+DROP POLICY IF EXISTS tenant_policy ON contacts;
+CREATE POLICY tenant_policy ON contacts FOR ALL
+  USING (platform_bypass_rls() OR organization_id = current_org_id())
+  WITH CHECK (platform_bypass_rls() OR organization_id = current_org_id());
+
+DROP POLICY IF EXISTS tenant_policy ON contact_encounters;
+CREATE POLICY tenant_policy ON contact_encounters FOR ALL
+  USING (platform_bypass_rls() OR organization_id = current_org_id())
+  WITH CHECK (platform_bypass_rls() OR organization_id = current_org_id());
+
+DROP POLICY IF EXISTS tenant_policy ON event_sessions;
+CREATE POLICY tenant_policy ON event_sessions FOR ALL
+  USING (platform_bypass_rls() OR organization_id = current_org_id())
+  WITH CHECK (platform_bypass_rls() OR organization_id = current_org_id());
+
+DROP POLICY IF EXISTS tenant_policy ON session_members;
+CREATE POLICY tenant_policy ON session_members FOR ALL
+  USING (platform_bypass_rls() OR organization_id = current_org_id())
+  WITH CHECK (platform_bypass_rls() OR organization_id = current_org_id());
+
+DROP POLICY IF EXISTS tenant_policy ON ocr_jobs;
+CREATE POLICY tenant_policy ON ocr_jobs FOR ALL
+  USING (platform_bypass_rls() OR organization_id = current_org_id())
+  WITH CHECK (platform_bypass_rls() OR organization_id = current_org_id());
+
+DROP POLICY IF EXISTS tenant_policy ON card_images;
+CREATE POLICY tenant_policy ON card_images FOR ALL
+  USING (platform_bypass_rls() OR organization_id = current_org_id())
+  WITH CHECK (platform_bypass_rls() OR organization_id = current_org_id());
+
+DROP POLICY IF EXISTS tenant_select_policy ON audit_events;
+CREATE POLICY tenant_select_policy ON audit_events FOR SELECT
+  USING (platform_bypass_rls() OR organization_id = current_org_id());
+
+DROP POLICY IF EXISTS tenant_insert_policy ON audit_events;
+CREATE POLICY tenant_insert_policy ON audit_events FOR INSERT
+  WITH CHECK (platform_bypass_rls() OR organization_id = current_org_id());
+
+DROP POLICY IF EXISTS tenant_policy ON exports;
+CREATE POLICY tenant_policy ON exports FOR ALL
+  USING (platform_bypass_rls() OR organization_id = current_org_id())
+  WITH CHECK (platform_bypass_rls() OR organization_id = current_org_id());
+
+DROP POLICY IF EXISTS tenant_policy ON sync_queue;
+CREATE POLICY tenant_policy ON sync_queue FOR ALL
+  USING (platform_bypass_rls() OR organization_id = current_org_id())
+  WITH CHECK (platform_bypass_rls() OR organization_id = current_org_id());
+
+DROP POLICY IF EXISTS tenant_policy ON notifications;
+CREATE POLICY tenant_policy ON notifications FOR ALL
+  USING (platform_bypass_rls() OR organization_id = current_org_id())
+  WITH CHECK (platform_bypass_rls() OR organization_id = current_org_id());
+
+DROP POLICY IF EXISTS tenant_policy ON relationship_matches;
+CREATE POLICY tenant_policy ON relationship_matches FOR ALL
+  USING (platform_bypass_rls() OR organization_id = current_org_id())
+  WITH CHECK (platform_bypass_rls() OR organization_id = current_org_id());
+
+DROP POLICY IF EXISTS tenant_policy ON contact_merge_history;
+CREATE POLICY tenant_policy ON contact_merge_history FOR ALL
+  USING (platform_bypass_rls() OR organization_id = current_org_id())
+  WITH CHECK (platform_bypass_rls() OR organization_id = current_org_id());

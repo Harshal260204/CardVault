@@ -14,15 +14,7 @@ describe('MigrationHealthService', () => {
   });
 
   it('reports no warnings when all migrations are applied and columns exist', async () => {
-    const localMigrations = [
-      '20260522000000_baseline',
-      '20260523120000_saas_foundation',
-      '20260523130000_rls_policies',
-      '20260525190000_add_plans_table',
-      '20260526180000_split_roles_and_rtr',
-      '20260526190000_active_rls_policies',
-      '20260605120000_add_expo_push_token',
-    ];
+    const localMigrations = ['20260614000000_init'];
     jest
       .spyOn(
         service as unknown as { listLocalMigrationNames: () => string[] },
@@ -44,9 +36,7 @@ describe('MigrationHealthService', () => {
 
   it('warns when expo_push_token column is missing', async () => {
     (prisma.$queryRaw as jest.Mock)
-      .mockResolvedValueOnce([
-        { migration_name: '20260605120000_add_expo_push_token' },
-      ])
+      .mockResolvedValueOnce([{ migration_name: '20260614000000_init' }])
       .mockResolvedValueOnce([{ exists: false }]);
 
     await service.runChecks();
@@ -63,7 +53,7 @@ describe('MigrationHealthService', () => {
         service as unknown as { listLocalMigrationNames: () => string[] },
         'listLocalMigrationNames',
       )
-      .mockReturnValue(['20260605120000_add_expo_push_token']);
+      .mockReturnValue(['20260614000000_init']);
 
     (prisma.$queryRaw as jest.Mock)
       .mockResolvedValueOnce([])
