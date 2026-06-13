@@ -1,8 +1,11 @@
 import { AsyncLocalStorage } from 'async_hooks';
 
+import type { TenantScopingMode } from './tenant-scoping';
+
 export interface TenantStore {
   organizationId?: string;
   bypassTenantScope?: boolean;
+  scopingMode?: TenantScopingMode;
 }
 
 const tenantStorage = new AsyncLocalStorage<TenantStore>();

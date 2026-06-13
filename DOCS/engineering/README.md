@@ -1,7 +1,15 @@
 # Engineering docs
 
 - System architecture and phase plans live here.
-- Keep `WEB/lib/types.ts` aligned with `API/src/contracts/types.ts` when the API contract changes.
+- Keep `WEB/lib/types.ts` and `MOBILE/lib/types.ts` aligned with `API/src/contracts/types.ts` when the API contract changes.
+
+## Apps
+
+| Doc | Purpose |
+|-----|---------|
+| [MOBILE.md](./MOBILE.md) | Expo field app — routing, Zustand stores, auth, API client, OCR flow |
+| [LOCAL_DEV.md](./LOCAL_DEV.md) | Local setup (API, WEB, MOBILE) |
+| [DEPLOY_ENV.md](./DEPLOY_ENV.md) | Deployment env matrix incl. Expo/EAS |
 
 ## Card scanning & OCR
 

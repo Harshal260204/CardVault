@@ -1,9 +1,12 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import type { RequestUser } from '../auth/auth.types';
+
 import { AnalyticsService } from './analytics.service';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { PlatformTenantBypass } from '../../common/decorators/platform-tenant-bypass.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
+
+import type { RequestUser } from '../auth/auth.types';
 
 @Controller('analytics')
 @Roles(
@@ -12,6 +15,7 @@ import { AnalyticsService } from './analytics.service';
   UserRole.platform_super_admin,
   UserRole.platform_support,
 )
+@PlatformTenantBypass()
 export class AnalyticsController {
   constructor(private readonly analytics: AnalyticsService) {}
 

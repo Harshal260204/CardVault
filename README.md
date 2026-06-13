@@ -40,12 +40,14 @@ cd API
 cp .env.example .env
 # Edit .env — set DB_* credentials and GOOGLE_VISION_KEY_PATH
 npm install
-npm run db:push
+npm run db:migrate
 npm run db:seed
 npm run dev
 ```
 
-Health check: http://localhost:8000/api/v1/health — expect `"database": "up"`.
+Use `npm run db:migrate:deploy` (not `db:push`) for staging and production — see [DOCS/engineering/DEPLOY_ENV.md](DOCS/engineering/DEPLOY_ENV.md).
+
+Health check: http://localhost:8000/api/v1/health when `PORT=8000` in `API/.env` (if `PORT` is unset, the API falls back to port **4000** — see `API/src/config/database-url.ts`).
 
 On boot, look for `[OCR:Google] Vision initialized successfully`.
 

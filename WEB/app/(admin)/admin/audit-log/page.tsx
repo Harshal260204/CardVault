@@ -1,31 +1,28 @@
 'use client';
 
+import { Shield } from 'lucide-react';
+import { useEffect, useState } from 'react';
+
 import { DataTable, type DataTableColumn } from '@/components/admin/data-table';
 import { PaginationBar } from '@/components/admin/pagination-bar';
 import { PageHeader } from '@/components/layout/page-header';
+import { EmptyState } from '@/components/shared/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ListSkeleton } from '@/components/shared/list-skeleton';
 import { useAuditEvents } from '@/hooks/use-admin';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import type { AuditEventRecord } from '@/lib/types';
-import { useEffect, useState } from 'react';
-import { EmptyState } from '@/components/shared/empty-state';
-import { Shield } from 'lucide-react';
 
 export default function AdminAuditLogPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
-  const [debouncedQ, setDebouncedQ] = useState('');
+  const debouncedQ = useDebouncedValue(search.trim(), 300);
   const limit = 20;
 
   useEffect(() => {
-    const t = setTimeout(() => {
-      setDebouncedQ(search.trim());
-      setPage(1);
-    }, 300);
-    return () => clearTimeout(t);
-  }, [search]);
+    setPage(1);
+  }, [debouncedQ]);
 
   const { data, isLoading } = useAuditEvents({
     page,
@@ -52,7 +49,9 @@ export default function AdminAuditLogPage() {
       header: 'Actor',
       className: 'min-w-[150px]',
       render: (row) => (
-        <span className="text-sm text-text-secondary">{row.actorEmail ?? 'System'}</span>
+        <span className="text-sm text-text-secondary">
+          {row.actorEmail ?? 'System'}
+        </span>
       ),
     },
     {
@@ -60,7 +59,11 @@ export default function AdminAuditLogPage() {
       header: 'Role',
       className: 'w-[100px]',
       render: (row) =>
-        row.actorRole ? <Badge variant="default">{row.actorRole}</Badge> : <span>—</span>,
+        row.actorRole ? (
+          <Badge variant="default">{row.actorRole}</Badge>
+        ) : (
+          <span>—</span>
+        ),
     },
     {
       key: 'entity',
@@ -118,8 +121,8 @@ export default function AdminAuditLogPage() {
                 title="No compliance events found"
                 description={
                   debouncedQ
-                    ? "Try adjusting your search queries."
-                    : "Compliance activity will appear here once actions are performed on the console."
+                    ? 'Try adjusting your search queries.'
+                    : 'Compliance activity will appear here once actions are performed on the console.'
                 }
               />
             }

@@ -1,10 +1,13 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import type { RequestUser } from '../auth/auth.types';
+
 import { AuditEventsService } from './audit.service';
 import { ListAuditQueryDto } from './dto/list-audit-query.dto';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { PlatformTenantBypass } from '../../common/decorators/platform-tenant-bypass.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
+
+import type { RequestUser } from '../auth/auth.types';
 
 @Controller('audit-events')
 @Roles(
@@ -13,6 +16,7 @@ import { ListAuditQueryDto } from './dto/list-audit-query.dto';
   UserRole.platform_super_admin,
   UserRole.platform_support,
 )
+@PlatformTenantBypass()
 export class AuditEventsController {
   constructor(private readonly auditEventsService: AuditEventsService) {}
 

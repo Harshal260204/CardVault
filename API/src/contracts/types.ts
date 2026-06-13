@@ -1,4 +1,4 @@
-/** API contract types — keep in sync with WEB/lib/types.ts */
+/** API contract types — keep in sync with WEB/lib/types.ts and MOBILE/lib/types.ts */
 
 export type UserRole =
   | 'employee'
@@ -29,5 +29,9 @@ export interface HealthStatus {
   services: {
     database: 'up' | 'down' | 'unknown';
     redis: 'up' | 'down' | 'unknown';
+  };
+  migrations?: {
+    status: 'ok' | 'pending';
+    warnings?: string[];
   };
 }

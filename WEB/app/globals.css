@@ -1,9 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Geist+Mono:wght@100..900&display=swap');
 @import '../styles/tokens.css';
 
 :root {
-  --font-sans: 'Geist', 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono: 'Geist Mono', 'JetBrains Mono', 'Fira Code', monospace;
+  --font-sans-fallback: system-ui, -apple-system, sans-serif;
+  --font-mono-fallback: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
 @tailwind base;

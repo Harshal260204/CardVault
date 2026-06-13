@@ -9,15 +9,19 @@ import {
   ParseUUIDPipe,
 } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import type { RequestUser } from '../auth/auth.types';
+
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
 import { OrganizationsService } from './organizations.service';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { PlatformTenantBypass } from '../../common/decorators/platform-tenant-bypass.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
+
+import type { RequestUser } from '../auth/auth.types';
 
 @Controller('admin/organizations')
 @Roles(UserRole.platform_super_admin)
+@PlatformTenantBypass()
 export class OrganizationsController {
   constructor(private readonly organizations: OrganizationsService) {}
 

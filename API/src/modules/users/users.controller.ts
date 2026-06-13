@@ -10,13 +10,16 @@ import {
   ParseUUIDPipe,
 } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import type { RequestUser } from '../auth/auth.types';
+
+import { CreateUserDto } from './dto/create-user.dto';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { CreateUserDto } from './dto/create-user.dto';
 import { UsersService } from './users.service';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { PlatformTenantBypass } from '../../common/decorators/platform-tenant-bypass.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
+
+import type { RequestUser } from '../auth/auth.types';
 
 @Controller('users')
 @Roles(
@@ -25,6 +28,7 @@ import { UsersService } from './users.service';
   UserRole.platform_super_admin,
   UserRole.platform_support,
 )
+@PlatformTenantBypass()
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 

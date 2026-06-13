@@ -1,7 +1,12 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
-import { applyDatabaseUrlFromParts } from '../config/database-url';
+
 import { getTenantStore } from '../common/tenant/tenant-context.storage';
+import {
+  extractOrganizationIdFromWhere,
+  isPlatformBypassActive,
+} from '../common/tenant/tenant-scoping';
+import { applyDatabaseUrlFromParts } from '../config/database-url';
 
 @Injectable()
 export class PrismaService
@@ -22,12 +27,13 @@ export class PrismaService
         $allModels: {
           async $allOperations({ model, operation, args, query }) {
             const store = getTenantStore();
+            const typedArgs = (args ?? {}) as {
+              where?: Record<string, unknown>;
+            };
 
-            // Set session variable for RLS
-            await self.applyTenantRls();
+            await self.applyTenantRls(typedArgs.where);
 
-            // Skip tenant scoping if bypassed or context is missing
-            if (!store?.organizationId || store.bypassTenantScope) {
+            if (!store?.organizationId || isPlatformBypassActive(store)) {
               return query(args);
             }
 
@@ -61,15 +67,13 @@ export class PrismaService
                   'deleteMany',
                 ].includes(operation)
               ) {
-                const typedArgs = (args ?? {}) as {
-                  where?: Record<string, any>;
-                };
-                typedArgs.where = typedArgs.where ?? {};
+                const scopedArgs = typedArgs;
+                scopedArgs.where = scopedArgs.where ?? {};
                 // If it is findUnique, Prisma requires the query to target unique fields.
                 // However, adding a non-unique field to "where" makes it a non-unique query under the hood.
                 // Prisma client extension automatically downgrades findUnique to findFirst if a non-unique field is added to where.
-                typedArgs.where.organizationId = store.organizationId;
-                return query(typedArgs);
+                scopedArgs.where.organizationId = store.organizationId;
+                return query(scopedArgs);
               }
             }
 
@@ -108,13 +112,34 @@ export class PrismaService
     await this.$disconnect();
   }
 
-  /** Apply RLS session variable for the current async context (call before tenant queries). */
-  async applyTenantRls(): Promise<void> {
+  /** Apply RLS session variables for the current async context. */
+  async applyTenantRls(where?: Record<string, unknown>): Promise<void> {
     const store = getTenantStore();
-    if (!store?.organizationId || store.bypassTenantScope) {
+
+    if (isPlatformBypassActive(store)) {
+      const explicitOrgId = extractOrganizationIdFromWhere(where);
+      if (explicitOrgId) {
+        await this
+          .$executeRaw`SELECT set_config('app.platform_bypass_rls', 'false', true)`;
+        await this
+          .$executeRaw`SELECT set_config('app.current_org_id', ${explicitOrgId}, true)`;
+        return;
+      }
+
+      await this.$executeRaw`SELECT set_config('app.current_org_id', '', true)`;
+      await this
+        .$executeRaw`SELECT set_config('app.platform_bypass_rls', 'true', true)`;
+      return;
+    }
+
+    await this
+      .$executeRaw`SELECT set_config('app.platform_bypass_rls', 'false', true)`;
+
+    if (!store?.organizationId) {
       await this.$executeRaw`SELECT set_config('app.current_org_id', '', true)`;
       return;
     }
+
     await this
       .$executeRaw`SELECT set_config('app.current_org_id', ${store.organizationId}, true)`;
   }

@@ -57,7 +57,7 @@
 | Layer | TRD | Repo | Status |
 |-------|-----|------|--------|
 | Mobile RN | 0.74+ | 0.81.5 (Expo 54) | ✅ (newer) |
-| State | Zustand stores (8) | `zustand` in `MOBILE/package.json`; **no store files** | ❌ |
+| State | Zustand stores (8 planned) | `MOBILE/stores/` — `auth-store.ts`, `session-store.ts`, `theme-store.ts` | ⚠️ (3 of 8; see [MOBILE.md](./MOBILE.md)) |
 | OCR engine | Google ML Kit on-device | `ocr_service/app.py` + `paddle-ocr.provider.ts` | ⚠️ (documented pivot) |
 | Camera | Vision Camera + blur | `expo-image-picker` only | ❌ |
 | Backend | NestJS 10, Node 20 | `API/package.json` | ✅ |

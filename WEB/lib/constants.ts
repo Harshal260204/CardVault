@@ -1,6 +1,9 @@
 export const API_VERSION = 'v1';
 export const API_BASE_PATH = `/api/${API_VERSION}`;
 
+/** Same-origin BFF proxy prefix — browser never talks to NestJS directly. */
+export const BFF_PROXY_PATH = '/api/proxy';
+
 export const DESIGN = {
   MOBILE_FRAME_WIDTH: 390,
   MOBILE_FRAME_HEIGHT: 844,
@@ -16,7 +19,6 @@ export const DESIGN = {
 } as const;
 
 export const STORAGE_KEYS = {
-  ACCESS_TOKEN: 'cardvault_access_token',
-  REFRESH_TOKEN: 'cardvault_refresh_token',
+  /** UI-only persisted profile hint; tokens live in httpOnly cookies. */
   USER: 'cardvault_user',
 } as const;

@@ -1,35 +1,27 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
-import * as request from 'supertest';
-import { AppModule } from './../src/app.module';
 import { PrismaClient } from '@prisma/client';
+import * as request from 'supertest';
+
+import { API_PREFIX, createTestApp } from './utils/create-test-app';
+
+import type { INestApplication } from '@nestjs/common';
 
 describe('Tenant Isolation (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaClient;
 
-  // Store tokens and IDs
-  let tokenOrgAEmployee: string; // employee@cardvault.local
-  let tokenOrgBEmployee: string; // employee@acme.local
-  let tokenOrgBManager: string; // manager@acme.local
-  let tokenPlatformAdmin: string; // admin@cardvault.local
+  let tokenOrgAEmployee: string;
+  let tokenOrgBEmployee: string;
+  let tokenOrgBManager: string;
+  let tokenPlatformAdmin: string;
 
   let orgAId: string;
   let orgBId: string;
-
-  let contactAId: string; // belongs to Org A (CardVault)
+  let contactAId: string;
 
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleFixture.createNestApplication();
-    await app.init();
-
+    app = await createTestApp();
     prisma = new PrismaClient();
 
-    // Retrieve Org IDs from Database
     const orgA = await prisma.organization.findUniqueOrThrow({
       where: { slug: 'cardvault-demo' },
     });
@@ -39,7 +31,6 @@ describe('Tenant Isolation (e2e)', () => {
     orgAId = orgA.id;
     orgBId = orgB.id;
 
-    // Retrieve Contacts from Database
     const contactA = await prisma.contact.findFirstOrThrow({
       where: { organizationId: orgAId },
     });
@@ -48,13 +39,12 @@ describe('Tenant Isolation (e2e)', () => {
     });
     contactAId = contactA.id;
 
-    // Perform Login to get JWT access tokens
     const login = async (email: string) => {
       const res = await request(app.getHttpServer())
-        .post('/auth/login')
+        .post(`${API_PREFIX}/auth/login`)
         .send({ email, password: 'Password123!' })
         .expect(201);
-      return res.body.data.tokens.accessToken;
+      return res.body.data.tokens.accessToken as string;
     };
 
     tokenOrgAEmployee = await login('employee@cardvault.local');
@@ -71,15 +61,14 @@ describe('Tenant Isolation (e2e)', () => {
   describe('1. Read Isolation (GET /contacts/:id)', () => {
     it('should allow same-tenant employee to read their own tenant contact', async () => {
       await request(app.getHttpServer())
-        .get(`/contacts/${contactAId}`)
+        .get(`${API_PREFIX}/contacts/${contactAId}`)
         .set('Authorization', `Bearer ${tokenOrgAEmployee}`)
         .expect(200);
     });
 
     it('should block cross-tenant employee from reading another tenant contact (returns 404)', async () => {
-      // It returns 404 because the Prisma extension/where filter limits visibility to the user's tenant
       await request(app.getHttpServer())
-        .get(`/contacts/${contactAId}`)
+        .get(`${API_PREFIX}/contacts/${contactAId}`)
         .set('Authorization', `Bearer ${tokenOrgBEmployee}`)
         .expect(404);
     });
@@ -88,9 +77,10 @@ describe('Tenant Isolation (e2e)', () => {
   describe('2. Query Parameter / Routing Protection (TenantGuard)', () => {
     it('should reject non-platform user specifying another organizationId in query (returns 403)', async () => {
       const response = await request(app.getHttpServer())
-        .get(`/users?organizationId=${orgAId}`)
+        .get(`${API_PREFIX}/users?organizationId=${orgAId}`)
         .set('Authorization', `Bearer ${tokenOrgBManager}`)
         .expect(403);
+
       expect(response.body.error.message).toContain(
         'Cross-tenant access denied',
       );
@@ -98,23 +88,21 @@ describe('Tenant Isolation (e2e)', () => {
 
     it('should allow platform admin to query cross-tenant statistics/users (returns 200)', async () => {
       await request(app.getHttpServer())
-        .get(`/users?organizationId=${orgBId}`)
+        .get(`${API_PREFIX}/users?organizationId=${orgBId}`)
         .set('Authorization', `Bearer ${tokenPlatformAdmin}`)
         .expect(200);
     });
   });
 
   describe('3. Write Isolation & Creation Scope Safeguards', () => {
-    it('should reject non-platform user trying to create a contact under another organization in body (returns 403)', async () => {
-      // Note: We bypass whitelist validation by sending organizationId.
-      // If the body contains organizationId, TenantGuard intercepts and rejects it if it doesn't match actor org
+    it('should reject non-platform user trying to inject organizationId in body (returns 403)', async () => {
       const response = await request(app.getHttpServer())
-        .post('/contacts')
+        .post(`${API_PREFIX}/contacts`)
         .set('Authorization', `Bearer ${tokenOrgBEmployee}`)
         .send({
           fullName: 'Malicious Attacker',
           company: 'SaaS Hackers',
-          organizationId: orgAId, // Attempting to inject contact into CardVault
+          organizationId: orgAId,
         })
         .expect(403);
 
@@ -125,7 +113,7 @@ describe('Tenant Isolation (e2e)', () => {
 
     it('should allow user to create contact in their own tenant', async () => {
       const response = await request(app.getHttpServer())
-        .post('/contacts')
+        .post(`${API_PREFIX}/contacts`)
         .set('Authorization', `Bearer ${tokenOrgBEmployee}`)
         .send({
           fullName: 'Valid Contact',
@@ -135,9 +123,46 @@ describe('Tenant Isolation (e2e)', () => {
 
       expect(response.body.data.fullName).toBe('Valid Contact');
 
-      // Clean up test contact
-      const createdId = response.body.data.id;
+      const createdId = response.body.data.id as string;
       await prisma.contact.delete({ where: { id: createdId } });
+    });
+  });
+
+  describe('4. Platform admin tenant bypass', () => {
+    it('should allow platform admin to query users in another organization', async () => {
+      const response = await request(app.getHttpServer())
+        .get(`${API_PREFIX}/users?organizationId=${orgBId}`)
+        .set('Authorization', `Bearer ${tokenPlatformAdmin}`)
+        .expect(200);
+
+      expect(response.body.data.length).toBeGreaterThan(0);
+      for (const row of response.body.data) {
+        expect(row.organizationId).toBe(orgBId);
+      }
+    });
+
+    it('should allow platform admin to list all organizations', async () => {
+      const response = await request(app.getHttpServer())
+        .get(`${API_PREFIX}/admin/organizations`)
+        .set('Authorization', `Bearer ${tokenPlatformAdmin}`)
+        .expect(200);
+
+      const orgIds = response.body.data.map(
+        (org: { id: string }) => org.id,
+      ) as string[];
+      expect(orgIds).toEqual(expect.arrayContaining([orgAId, orgBId]));
+    });
+
+    it('should not allow regular managers to trigger platform bypass on marked routes', async () => {
+      await request(app.getHttpServer())
+        .get(`${API_PREFIX}/users?organizationId=${orgAId}`)
+        .set('Authorization', `Bearer ${tokenOrgBManager}`)
+        .expect(403);
+
+      await request(app.getHttpServer())
+        .get(`${API_PREFIX}/admin/organizations`)
+        .set('Authorization', `Bearer ${tokenOrgBManager}`)
+        .expect(403);
     });
   });
 });

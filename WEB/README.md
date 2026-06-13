@@ -13,7 +13,7 @@ npm install
 npm run dev
 ```
 
-`NEXT_PUBLIC_API_URL` must match the API (default `http://localhost:8000/api/v1`).
+`NEXT_PUBLIC_API_URL` must match the API port (e.g. `http://localhost:8000/api/v1` when `PORT=8000` in `API/.env`).
 
 ## Demo login
 

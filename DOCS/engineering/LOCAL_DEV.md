@@ -18,6 +18,8 @@ JWT_REFRESH_SECRET=dev-refresh-secret-min-32-characters-long
 
 The API builds `DATABASE_URL` from `DB_*` for Prisma. Set `DATABASE_URL` directly to override.
 
+**Port:** `PORT=8000` in `.env.example` is the recommended local value. If `PORT` is omitted, the HTTP server defaults to **4000** (`getApiPort()` in `API/src/config/database-url.ts`). Client env vars (`NEXT_PUBLIC_API_URL`, `EXPO_PUBLIC_API_URL`) must match whichever port you use.
+
 ## PostgreSQL setup
 
 1. Install PostgreSQL 15+ for Windows.
@@ -31,7 +33,7 @@ cd API
 npm install
 cp .env.example .env
 # Edit .env with your PostgreSQL credentials
-npm run db:push
+npm run db:migrate
 npm run db:seed
 npm run dev
 ```
@@ -39,6 +41,19 @@ npm run dev
 Health: http://localhost:8000/api/v1/health (use your `PORT` if different).
 
 If you added dependencies while `npm run dev` was already running, **restart the API** so auth routes load.
+
+### Do not use `db:push` on shared, staging, or production databases
+
+`prisma db push` applies schema changes directly but **does not write to `_prisma_migrations`**. When the repo adds a new migration (for example `20260605120000_add_expo_push_token` adding `users.expo_push_token`), a database that was only ever `db push`ed will miss that column and fail at runtime with errors like:
+
+`The column users.expo_push_token does not exist in the current database.`
+
+**Always use:**
+
+- Local development: `npm run db:migrate` (`prisma migrate dev`)
+- CI / staging / production: `npm run db:migrate:deploy` (`prisma migrate deploy`)
+
+The API logs a prominent `DATABASE MIGRATION WARNING` at startup when migrations are pending or critical columns are missing. The `/api/v1/health` endpoint also reports `migrations.status: "pending"`.
 
 ## Demo login (Phase 4)
 
@@ -50,22 +65,36 @@ If you added dependencies while `npm run dev` was already running, **restart the
 | employee@acme.local | Password123! | employee (org: acme-demo) |
 | manager@acme.local | Password123! | manager (org: acme-demo) |
 
-Use migrations (recommended) or `db:push` for quick local sync.
+Use migrations — not `db:push` — for all normal development.
 
 ### Migrations (first time on an existing `db:push` database)
 
+If your database was created with `db:push`, migration history is missing. Apply all pending migrations:
+
+```powershell
+cd API
+npm run db:migrate:deploy
+npm run db:seed
+```
+
 If `npm run db:migrate` fails with **P3015** (missing `migration.sql`), remove empty folders under `API/prisma/migrations/` that have no `migration.sql`.
 
-If you already have tables from `db:push`, **baseline** migration history instead of resetting:
+If you already have tables from `db:push` and `migrate deploy` reports conflicts, **baseline** migration history instead of resetting:
 
 ```powershell
 cd API
 node scripts/with-database-url.cjs migrate resolve --applied 20260522000000_baseline
 node scripts/with-database-url.cjs migrate resolve --applied 20260523120000_saas_foundation
-node scripts/with-database-url.cjs migrate deploy
-node scripts/with-database-url.cjs db push --accept-data-loss
+node scripts/with-database-url.cjs migrate resolve --applied 20260523130000_rls_policies
+node scripts/with-database-url.cjs migrate resolve --applied 20260525190000_add_plans_table
+node scripts/with-database-url.cjs migrate resolve --applied 20260526180000_split_roles_and_rtr
+node scripts/with-database-url.cjs migrate resolve --applied 20260526190000_active_rls_policies
+node scripts/with-database-url.cjs migrate resolve --applied 20260605120000_add_expo_push_token
+npm run db:migrate:deploy
 npm run db:seed
 ```
+
+Do **not** follow up with `db push --accept-data-loss` — that reintroduces drift.
 
 Fresh database (wipes data):
 
@@ -85,7 +114,7 @@ npm install
 npm run dev
 ```
 
-`NEXT_PUBLIC_API_URL` must match API `PORT` (default `http://localhost:8000/api/v1`).
+`NEXT_PUBLIC_API_URL` must match API `PORT` (e.g. `http://localhost:8000/api/v1` when `PORT=8000`).
 
 Managers and super admins only — employees are redirected to use MOBILE.
 
@@ -103,18 +132,22 @@ npm start
 - Android emulator: use `http://10.0.2.2:8000`
 - Physical device: use your PC LAN IP
 
-Sign in as `employee@cardvault.local`.
+See [MOBILE/README.md](../../MOBILE/README.md) and [MOBILE.md](./MOBILE.md) (architecture, stores, OCR flow).
+
+Demo login: `employee@cardvault.local` / `Password123!`
 
 ## Prisma commands
 
 All use `DB_*` from `API/.env`:
 
 ```bash
-npm run db:push
-npm run db:migrate
+npm run db:migrate          # local dev — apply/create migrations
+npm run db:migrate:deploy   # CI/staging/prod — canonical deploy step
 npm run db:generate
 npm run db:seed
 ```
+
+Do not use `db:push` on shared, staging, or production databases.
 
 See [AUTH_PHASE4.md](./AUTH_PHASE4.md) for JWT and route details.
 
