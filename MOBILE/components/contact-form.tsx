@@ -1,8 +1,13 @@
-import { COLORS } from '@/lib/constants';
-import { formatCaptureMode, formatLeadLabel } from '@/lib/format';
-import type { CaptureMode, EventSessionRecord, LeadQualifier } from '@/lib/types';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { formatCaptureMode, formatLeadLabel } from '@/lib/format';
+import type {
+  CaptureMode,
+  EventSessionRecord,
+  LeadQualifier,
+} from '@/lib/types';
 
 export interface ContactFormValues {
   fullName: string;
@@ -42,8 +47,18 @@ interface ContactFormProps {
   }) => void;
 }
 
-const LEAD_OPTIONS: Array<LeadQualifier | 'unqualified'> = ['unqualified', 'hot', 'warm', 'cold'];
-const CAPTURE_OPTIONS: CaptureMode[] = ['visitor', 'exhibitor', 'quick_capture', 'legacy'];
+const LEAD_OPTIONS: (LeadQualifier | 'unqualified')[] = [
+  'unqualified',
+  'hot',
+  'warm',
+  'cold',
+];
+const CAPTURE_OPTIONS: CaptureMode[] = [
+  'visitor',
+  'exhibitor',
+  'quick_capture',
+  'legacy',
+];
 
 export function ContactForm({
   initialValues,
@@ -52,6 +67,7 @@ export function ContactForm({
   submitLabel,
   onSubmit,
 }: ContactFormProps) {
+  const colors = useThemeColors();
   const [fullName, setFullName] = useState(initialValues.fullName);
   const [company, setCompany] = useState(initialValues.company);
   const [title, setTitle] = useState(initialValues.title);
@@ -62,9 +78,15 @@ export function ContactForm({
   const [leadNote, setLeadNote] = useState(initialValues.leadNote);
   const [followUpDate, setFollowUpDate] = useState(initialValues.followUpDate);
   const [notes, setNotes] = useState(initialValues.notes);
-  const [captureMode, setCaptureMode] = useState<CaptureMode>(initialValues.captureMode);
-  const [eventSessionId, setEventSessionId] = useState<string | undefined>(initialValues.eventSessionId);
-  const [leadQualifier, setLeadQualifier] = useState<LeadQualifier | undefined>(initialValues.leadQualifier);
+  const [captureMode, setCaptureMode] = useState<CaptureMode>(
+    initialValues.captureMode,
+  );
+  const [eventSessionId, setEventSessionId] = useState<string | undefined>(
+    initialValues.eventSessionId,
+  );
+  const [leadQualifier, setLeadQualifier] = useState<LeadQualifier | undefined>(
+    initialValues.leadQualifier,
+  );
 
   const selectedSession = useMemo(
     () => sessions.find((session) => session.id === eventSessionId),
@@ -96,165 +118,315 @@ export function ContactForm({
 
   return (
     <View style={styles.form}>
-      <Text style={styles.label}>Full name</Text>
+      <Text style={[styles.label, { color: colors.text }]}>Full name</Text>
       <TextInput
         value={fullName}
         onChangeText={setFullName}
         placeholder="Ashok Badjatiya"
-        placeholderTextColor={COLORS.muted}
-        style={styles.input}
+        placeholderTextColor={colors.placeholder}
+        style={[
+          styles.input,
+          {
+            backgroundColor: colors.inputBg,
+            borderColor: colors.border,
+            color: colors.text,
+          },
+        ]}
       />
 
-      <Text style={styles.label}>Company</Text>
+      <Text style={[styles.label, { color: colors.text }]}>Company</Text>
       <TextInput
         value={company}
         onChangeText={setCompany}
         placeholder="Company"
-        placeholderTextColor={COLORS.muted}
-        style={styles.input}
+        placeholderTextColor={colors.placeholder}
+        style={[
+          styles.input,
+          {
+            backgroundColor: colors.inputBg,
+            borderColor: colors.border,
+            color: colors.text,
+          },
+        ]}
       />
 
-      <Text style={styles.label}>Title</Text>
+      <Text style={[styles.label, { color: colors.text }]}>Title</Text>
       <TextInput
         value={title}
         onChangeText={setTitle}
         placeholder="Managing Director"
-        placeholderTextColor={COLORS.muted}
-        style={styles.input}
+        placeholderTextColor={colors.placeholder}
+        style={[
+          styles.input,
+          {
+            backgroundColor: colors.inputBg,
+            borderColor: colors.border,
+            color: colors.text,
+          },
+        ]}
       />
 
-      <Text style={styles.label}>Event</Text>
+      <Text style={[styles.label, { color: colors.text }]}>Event</Text>
       <View style={styles.chipRow}>
         <Pressable
-          style={[styles.chip, !eventSessionId && styles.chipActive]}
+          style={[
+            styles.chip,
+            { borderColor: colors.border, backgroundColor: colors.inputBg },
+            !eventSessionId && styles.chipActive,
+          ]}
           onPress={() => setEventSessionId(undefined)}
         >
-          <Text style={[styles.chipText, !eventSessionId && styles.chipTextActive]}>Standalone</Text>
+          <Text
+            style={[
+              styles.chipText,
+              { color: colors.text },
+              !eventSessionId && styles.chipTextActive,
+            ]}
+          >
+            Standalone
+          </Text>
         </Pressable>
         {sessions.map((session) => {
           const selected = session.id === eventSessionId;
           return (
             <Pressable
               key={session.id}
-              style={[styles.chip, selected && styles.chipActive]}
+              style={[
+                styles.chip,
+                { borderColor: colors.border, backgroundColor: colors.inputBg },
+                selected && styles.chipActive,
+              ]}
               onPress={() => {
                 setEventSessionId(session.id);
                 setCaptureMode(session.mode);
               }}
             >
-              <Text style={[styles.chipText, selected && styles.chipTextActive]}>{session.name}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      <Text style={styles.label}>Category</Text>
-      {selectedSession ? (
-        <View style={styles.readonlyCard}>
-          <Text style={styles.readonlyText}>{formatCaptureMode(selectedSession.mode)}</Text>
-          <Text style={styles.readonlyHint}>Matched to the selected event</Text>
-        </View>
-      ) : (
-        <View style={styles.chipRow}>
-          {CAPTURE_OPTIONS.map((mode) => {
-            const selected = mode === captureMode;
-            return (
-              <Pressable key={mode} style={[styles.chip, selected && styles.chipActive]} onPress={() => setCaptureMode(mode)}>
-                <Text style={[styles.chipText, selected && styles.chipTextActive]}>{formatCaptureMode(mode)}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      )}
-
-      <Text style={styles.label}>Lead status</Text>
-      <View style={styles.chipRow}>
-        {LEAD_OPTIONS.map((option) => {
-          const selected = (option === 'unqualified' ? undefined : option) === leadQualifier;
-          return (
-            <Pressable
-              key={option}
-              style={[styles.chip, selected && styles.chipActive]}
-              onPress={() => setLeadQualifier(option === 'unqualified' ? undefined : option)}
-            >
-              <Text style={[styles.chipText, selected && styles.chipTextActive]}>
-                {option === 'unqualified' ? 'Unqualified' : formatLeadLabel(option)}
+              <Text
+                style={[
+                  styles.chipText,
+                  { color: colors.text },
+                  selected && styles.chipTextActive,
+                ]}
+              >
+                {session.name}
               </Text>
             </Pressable>
           );
         })}
       </View>
 
-      <Text style={styles.label}>Emails</Text>
+      <Text style={[styles.label, { color: colors.text }]}>Category</Text>
+      {selectedSession ? (
+        <View
+          style={[
+            styles.readonlyCard,
+            { backgroundColor: colors.inputBg, borderColor: colors.border },
+          ]}
+        >
+          <Text style={[styles.readonlyText, { color: colors.text }]}>
+            {formatCaptureMode(selectedSession.mode)}
+          </Text>
+          <Text style={[styles.readonlyHint, { color: colors.muted }]}>
+            Matched to the selected event
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.chipRow}>
+          {CAPTURE_OPTIONS.map((mode) => {
+            const selected = mode === captureMode;
+            return (
+              <Pressable
+                key={mode}
+                style={[
+                  styles.chip,
+                  {
+                    borderColor: colors.border,
+                    backgroundColor: colors.inputBg,
+                  },
+                  selected && styles.chipActive,
+                ]}
+                onPress={() => setCaptureMode(mode)}
+              >
+                <Text
+                  style={[
+                    styles.chipText,
+                    { color: colors.text },
+                    selected && styles.chipTextActive,
+                  ]}
+                >
+                  {formatCaptureMode(mode)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+
+      <Text style={[styles.label, { color: colors.text }]}>Lead status</Text>
+      <View style={styles.chipRow}>
+        {LEAD_OPTIONS.map((option) => {
+          const selected =
+            (option === 'unqualified' ? undefined : option) === leadQualifier;
+          return (
+            <Pressable
+              key={option}
+              style={[
+                styles.chip,
+                { borderColor: colors.border, backgroundColor: colors.inputBg },
+                selected && styles.chipActive,
+              ]}
+              onPress={() =>
+                setLeadQualifier(option === 'unqualified' ? undefined : option)
+              }
+            >
+              <Text
+                style={[
+                  styles.chipText,
+                  { color: colors.text },
+                  selected && styles.chipTextActive,
+                ]}
+              >
+                {option === 'unqualified'
+                  ? 'Unqualified'
+                  : formatLeadLabel(option)}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <Text style={[styles.label, { color: colors.text }]}>Emails</Text>
       <TextInput
         value={emailsText}
         onChangeText={setEmailsText}
         placeholder="name@company.com, alt@company.com"
-        placeholderTextColor={COLORS.muted}
-        style={[styles.input, styles.multiline]}
+        placeholderTextColor={colors.placeholder}
+        style={[
+          styles.input,
+          styles.multiline,
+          {
+            backgroundColor: colors.inputBg,
+            borderColor: colors.border,
+            color: colors.text,
+          },
+        ]}
         multiline
       />
 
-      <Text style={styles.label}>Phones</Text>
+      <Text style={[styles.label, { color: colors.text }]}>Phones</Text>
       <TextInput
         value={phonesText}
         onChangeText={setPhonesText}
         placeholder="+91 9999999999, +91 8888888888"
-        placeholderTextColor={COLORS.muted}
-        style={[styles.input, styles.multiline]}
+        placeholderTextColor={colors.placeholder}
+        style={[
+          styles.input,
+          styles.multiline,
+          {
+            backgroundColor: colors.inputBg,
+            borderColor: colors.border,
+            color: colors.text,
+          },
+        ]}
         multiline
       />
 
-      <Text style={styles.label}>Website</Text>
+      <Text style={[styles.label, { color: colors.text }]}>Website</Text>
       <TextInput
         value={website}
         onChangeText={setWebsite}
         placeholder="https://company.com"
-        placeholderTextColor={COLORS.muted}
-        style={styles.input}
+        placeholderTextColor={colors.placeholder}
+        style={[
+          styles.input,
+          {
+            backgroundColor: colors.inputBg,
+            borderColor: colors.border,
+            color: colors.text,
+          },
+        ]}
       />
 
-      <Text style={styles.label}>LinkedIn</Text>
+      <Text style={[styles.label, { color: colors.text }]}>LinkedIn</Text>
       <TextInput
         value={linkedinUrl}
         onChangeText={setLinkedinUrl}
         placeholder="https://linkedin.com/in/name"
-        placeholderTextColor={COLORS.muted}
+        placeholderTextColor={colors.placeholder}
         autoCapitalize="none"
-        style={styles.input}
+        style={[
+          styles.input,
+          {
+            backgroundColor: colors.inputBg,
+            borderColor: colors.border,
+            color: colors.text,
+          },
+        ]}
       />
 
-      <Text style={styles.label}>Follow-up date</Text>
+      <Text style={[styles.label, { color: colors.text }]}>Follow-up date</Text>
       <TextInput
         value={followUpDate}
         onChangeText={setFollowUpDate}
         placeholder="YYYY-MM-DD"
-        placeholderTextColor={COLORS.muted}
-        style={styles.input}
+        placeholderTextColor={colors.placeholder}
+        style={[
+          styles.input,
+          {
+            backgroundColor: colors.inputBg,
+            borderColor: colors.border,
+            color: colors.text,
+          },
+        ]}
       />
 
-      <Text style={styles.label}>Lead note</Text>
+      <Text style={[styles.label, { color: colors.text }]}>Lead note</Text>
       <TextInput
         value={leadNote}
         onChangeText={setLeadNote}
         placeholder="Follow-up context or next step"
-        placeholderTextColor={COLORS.muted}
-        style={[styles.input, styles.notes]}
+        placeholderTextColor={colors.placeholder}
+        style={[
+          styles.input,
+          styles.notes,
+          {
+            backgroundColor: colors.inputBg,
+            borderColor: colors.border,
+            color: colors.text,
+          },
+        ]}
         multiline
       />
 
-      <Text style={styles.label}>Notes</Text>
+      <Text style={[styles.label, { color: colors.text }]}>Notes</Text>
       <TextInput
         value={notes}
         onChangeText={setNotes}
         placeholder="Notes about the lead"
-        placeholderTextColor={COLORS.muted}
-        style={[styles.input, styles.notes]}
+        placeholderTextColor={colors.placeholder}
+        style={[
+          styles.input,
+          styles.notes,
+          {
+            backgroundColor: colors.inputBg,
+            borderColor: colors.border,
+            color: colors.text,
+          },
+        ]}
         multiline
       />
 
-      <Pressable style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]} onPress={submit} disabled={isSubmitting}>
-        <Text style={styles.submitButtonText}>{isSubmitting ? 'Saving...' : submitLabel}</Text>
+      <Pressable
+        style={[
+          styles.submitButton,
+          isSubmitting && styles.submitButtonDisabled,
+        ]}
+        onPress={submit}
+        disabled={isSubmitting}
+      >
+        <Text style={styles.submitButtonText}>
+          {isSubmitting ? 'Saving...' : submitLabel}
+        </Text>
       </Pressable>
     </View>
   );
@@ -270,15 +442,12 @@ function parseList(value: string): string[] | undefined {
 
 const styles = StyleSheet.create({
   form: { gap: 8 },
-  label: { fontSize: 14, fontWeight: '600', color: COLORS.text, marginTop: 4 },
+  label: { fontSize: 14, fontWeight: '600', marginTop: 4 },
   input: {
-    backgroundColor: '#fff',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: COLORS.text,
   },
   multiline: {
     minHeight: 78,
@@ -291,34 +460,29 @@ const styles = StyleSheet.create({
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
     borderWidth: 1,
-    borderColor: COLORS.border,
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: '#fff',
   },
   chipActive: {
-    backgroundColor: COLORS.accent,
-    borderColor: COLORS.accent,
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6',
   },
   chipText: {
     fontSize: 13,
-    color: COLORS.text,
   },
   chipTextActive: {
     color: '#fff',
   },
   readonlyCard: {
-    backgroundColor: '#fff',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
     padding: 14,
   },
-  readonlyText: { fontSize: 16, fontWeight: '600', color: COLORS.text },
-  readonlyHint: { marginTop: 4, color: COLORS.muted, fontSize: 12 },
+  readonlyText: { fontSize: 16, fontWeight: '600' },
+  readonlyHint: { marginTop: 4, fontSize: 12 },
   submitButton: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: '#1E2D4A',
     borderRadius: 12,
     padding: 16,
     marginTop: 8,
@@ -326,5 +490,10 @@ const styles = StyleSheet.create({
   submitButtonDisabled: {
     opacity: 0.7,
   },
-  submitButtonText: { color: '#fff', fontWeight: '600', textAlign: 'center', fontSize: 16 },
+  submitButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    textAlign: 'center',
+    fontSize: 16,
+  },
 });

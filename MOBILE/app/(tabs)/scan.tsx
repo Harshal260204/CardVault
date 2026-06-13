@@ -1,14 +1,7 @@
-import { api } from '@/lib/api';
-import { fetchSessions, getApiErrorMessage, submitOcrJob } from '@/lib/api-client';
-import { captureLog } from '@/lib/capture-logger';
-import { COLORS } from '@/lib/constants';
-import { formatCaptureMode } from '@/lib/format';
-import { randomUuid } from '@/lib/uuid';
-import type { EventSessionRecord } from '@/lib/types';
-import { useSessionStore } from '@/stores/session-store';
+import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
-import { Link, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -20,27 +13,45 @@ import {
   View,
 } from 'react-native';
 
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { api } from '@/lib/api';
+import { fetchSessions, getApiErrorMessage } from '@/lib/api-client';
+import { captureLog } from '@/lib/capture-logger';
+import { formatCaptureMode } from '@/lib/format';
+import {
+  OfflineQueuedError,
+  submitOcrWithOfflineFallback,
+} from '@/lib/sync/sync-service';
+import type { EventSessionRecord } from '@/lib/types';
+import { randomUuid } from '@/lib/uuid';
+import { useSessionStore } from '@/stores/session-store';
+
 export default function ScanScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const activeMode = useSessionStore((s) => s.activeMode);
   const activeEncounterType = useSessionStore((s) => s.activeEncounterType);
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
-  const [sessionId, setSessionId] = useState<string | undefined>(activeSessionId);
+  const [sessionId, setSessionId] = useState<string | undefined>(
+    activeSessionId,
+  );
   const [uploading, setUploading] = useState(false);
 
   const sessions = useQuery({
     queryKey: ['sessions', 'mine', 'active'],
-    queryFn: () => fetchSessions(api, { limit: 50, status: 'active', mine: true }),
+    queryFn: () =>
+      fetchSessions(api, { limit: 50, status: 'active', mine: true }),
   });
 
   useEffect(() => {
-    if (activeSessionId) {
-      setSessionId(activeSessionId);
-    }
+    if (activeSessionId) setSessionId(activeSessionId);
   }, [activeSessionId]);
 
-  const availableSessions = sessions.data?.items ?? [];
+  const availableSessions = useMemo(
+    () => sessions.data?.items ?? [],
+    [sessions.data?.items],
+  );
   const selectedSession = useMemo(
     () => availableSessions.find((session) => session.id === sessionId),
     [availableSessions, sessionId],
@@ -53,7 +64,7 @@ export default function ScanScreen() {
     if (!isScanAllowed) {
       Alert.alert(
         'Select capture mode',
-        'Choose an active event, or start Quick Capture from the Home screen.',
+        'Choose an active event, or start Quick Capture from Home.',
       );
       return;
     }
@@ -64,7 +75,10 @@ export default function ScanScreen() {
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
       captureLog.permissionDenied(source);
-      Alert.alert('Permission needed', 'Allow camera or photo access to scan cards.');
+      Alert.alert(
+        'Permission needed',
+        'Allow camera or photo access to scan cards.',
+      );
       return;
     }
     const result = useCamera
@@ -77,13 +91,11 @@ export default function ScanScreen() {
 
     const asset = result.assets[0];
     captureLog.pickSelected(source, asset);
-
     const idempotencyKey = randomUuid();
     setUploading(true);
     try {
       const targetMode = selectedSession?.mode ?? activeMode;
-      const job = await submitOcrJob(
-        api,
+      const job = await submitOcrWithOfflineFallback(
         {
           uri: asset.uri,
           name: asset.fileName ?? 'card.jpg',
@@ -93,10 +105,18 @@ export default function ScanScreen() {
           captureMode: targetMode,
           sessionId: selectedSession?.id,
           clientIdempotencyKey: idempotencyKey,
+          encounterType: activeEncounterType,
         },
       );
       router.push({ pathname: '/ocr-review', params: { jobId: job.id } });
     } catch (e) {
+      if (e instanceof OfflineQueuedError) {
+        Alert.alert('Saved offline', e.message, [
+          { text: 'View queue', onPress: () => router.push('/sync-status') },
+          { text: 'OK' },
+        ]);
+        return;
+      }
       Alert.alert('Upload failed', getApiErrorMessage(e));
     } finally {
       setUploading(false);
@@ -104,16 +124,34 @@ export default function ScanScreen() {
   };
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Scan business card</Text>
-      <Text style={styles.subtitle}>
+    <ScrollView
+      style={[styles.root, { backgroundColor: colors.background }]}
+      contentContainerStyle={styles.content}
+    >
+      <Text style={[styles.title, { color: colors.text }]}>
+        Scan business card
+      </Text>
+      <Text style={[styles.subtitle, { color: colors.muted }]}>
         Scan into an active event, or use Quick Capture for standalone contacts.
       </Text>
 
       {isQuickCapture ? (
-        <View style={styles.quickBanner}>
-          <Text style={styles.quickBannerTitle}>Quick Capture</Text>
-          <Text style={styles.quickBannerText}>
+        <View
+          style={[
+            styles.quickBanner,
+            {
+              backgroundColor: colors.isDark ? '#064E3B' : '#F0FDF4',
+              borderColor: colors.isDark ? '#065F46' : '#BBF7D0',
+            },
+          ]}
+        >
+          <Ionicons name="flash-outline" size={18} color="#16A34A" />
+          <Text
+            style={[
+              styles.quickBannerText,
+              { color: colors.isDark ? '#34D399' : '#15803D' },
+            ]}
+          >
             {activeEncounterType
               ? `Encounter: ${activeEncounterType}`
               : 'No event linked — saves directly to your contact list.'}
@@ -122,26 +160,50 @@ export default function ScanScreen() {
       ) : null}
 
       <View style={styles.actions}>
-        <Link href="/events/create" asChild>
-          <Pressable style={styles.primaryAction}>
-            <Text style={styles.primaryActionText}>Create event</Text>
-          </Pressable>
-        </Link>
         <Pressable
-          style={styles.secondaryAction}
+          style={styles.primaryAction}
+          onPress={() => router.push('/events/create')}
+        >
+          <Text style={styles.primaryActionText}>Create event</Text>
+        </Pressable>
+        <Pressable
+          style={[
+            styles.secondaryAction,
+            { borderColor: colors.accent, backgroundColor: colors.surface },
+          ]}
           onPress={() => router.push('/encounter-select')}
         >
-          <Text style={styles.secondaryActionText}>Quick capture</Text>
+          <Text style={[styles.secondaryActionText, { color: colors.accent }]}>
+            Quick capture
+          </Text>
+        </Pressable>
+        <Pressable
+          style={[
+            styles.secondaryAction,
+            { borderColor: colors.border, backgroundColor: colors.surface },
+          ]}
+          onPress={() => router.push('/sessions/browse')}
+        >
+          <Text style={[styles.secondaryActionText, { color: colors.text }]}>
+            Browse org sessions
+          </Text>
         </Pressable>
       </View>
 
       {!isQuickCapture ? (
         <>
-          <Text style={styles.label}>Choose an active event</Text>
+          <Text style={[styles.label, { color: colors.text }]}>
+            Choose an active event
+          </Text>
           {sessions.isLoading ? (
-            <ActivityIndicator color={COLORS.accent} style={{ marginVertical: 20 }} />
+            <ActivityIndicator
+              color={colors.accent}
+              style={{ marginVertical: 20 }}
+            />
           ) : sessions.isError ? (
-            <Text style={styles.errorText}>{getApiErrorMessage(sessions.error)}</Text>
+            <Text style={styles.errorText}>
+              {getApiErrorMessage(sessions.error)}
+            </Text>
           ) : availableSessions.length ? (
             <View style={styles.sessionList}>
               {availableSessions.map((s: EventSessionRecord) => {
@@ -149,14 +211,32 @@ export default function ScanScreen() {
                 return (
                   <Pressable
                     key={s.id}
-                    style={[styles.sessionCard, selected && styles.sessionCardActive]}
+                    style={[
+                      styles.sessionCard,
+                      {
+                        backgroundColor: colors.surface,
+                        borderColor: selected
+                          ? colors.accent
+                          : colors.cardBorder,
+                      },
+                      selected && {
+                        backgroundColor: colors.isDark ? '#1E3A5F' : '#EFF6FF',
+                      },
+                    ]}
                     onPress={() => {
                       setSessionId(s.id);
                       setActiveSession(s.id, s.mode);
                     }}
                   >
-                    <Text style={[styles.sessionTitle, selected && styles.sessionTitleActive]}>{s.name}</Text>
-                    <Text style={[styles.sessionMeta, selected && styles.sessionMetaActive]}>
+                    <Text
+                      style={[
+                        styles.sessionTitle,
+                        { color: selected ? colors.accent : colors.text },
+                      ]}
+                    >
+                      {s.name}
+                    </Text>
+                    <Text style={[styles.sessionMeta, { color: colors.muted }]}>
                       {formatCaptureMode(s.mode)} · {s.scanCount} scans
                     </Text>
                   </Pressable>
@@ -164,13 +244,19 @@ export default function ScanScreen() {
               })}
             </View>
           ) : (
-            <Text style={styles.emptyText}>You don&apos;t have any active events yet.</Text>
+            <Text style={[styles.emptyText, { color: colors.muted }]}>
+              You don&apos;t have any active events yet.
+            </Text>
           )}
         </>
       ) : null}
 
       {uploading ? (
-        <ActivityIndicator size="large" color={COLORS.accent} style={{ marginTop: 32 }} />
+        <ActivityIndicator
+          size="large"
+          color={colors.accent}
+          style={{ marginTop: 32 }}
+        />
       ) : (
         <>
           <Pressable
@@ -178,14 +264,21 @@ export default function ScanScreen() {
             onPress={() => pickAndUpload(true)}
             disabled={!isScanAllowed}
           >
+            <Ionicons name="camera-outline" size={18} color="#FFFFFF" />
             <Text style={styles.primaryText}>Take photo</Text>
           </Pressable>
           <Pressable
-            style={[styles.secondary, !isScanAllowed && styles.disabled]}
+            style={[
+              styles.secondary,
+              { borderColor: colors.accent, backgroundColor: colors.surface },
+              !isScanAllowed && styles.disabled,
+            ]}
             onPress={() => pickAndUpload(false)}
             disabled={!isScanAllowed}
           >
-            <Text style={styles.secondaryText}>Choose from gallery</Text>
+            <Text style={[styles.secondaryText, { color: colors.accent }]}>
+              Choose from gallery
+            </Text>
           </Pressable>
         </>
       )}
@@ -194,67 +287,54 @@ export default function ScanScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
-  content: { padding: 16 },
-  title: { fontSize: 24, fontWeight: '700', color: COLORS.text },
-  subtitle: { color: COLORS.muted, marginTop: 6, marginBottom: 16, lineHeight: 20 },
+  root: { flex: 1 },
+  content: { padding: 20, paddingBottom: 32 },
+  title: { fontSize: 22, fontWeight: '800' },
+  subtitle: { marginTop: 6, marginBottom: 16, lineHeight: 20, fontSize: 14 },
   quickBanner: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#BBF7D0',
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1,
     borderRadius: 12,
     padding: 12,
     marginBottom: 16,
+    gap: 8,
   },
-  quickBannerTitle: { fontWeight: '700', color: '#16A34A', marginBottom: 4 },
-  quickBannerText: { color: '#15803D', fontSize: 13 },
+  quickBannerText: { flex: 1, fontSize: 13 },
   actions: { gap: 10, marginBottom: 20 },
-  primaryAction: {
-    backgroundColor: COLORS.accent,
-    borderRadius: 12,
-    padding: 14,
-  },
+  primaryAction: { backgroundColor: '#1E2D4A', borderRadius: 12, padding: 14 },
   primaryActionText: { color: '#fff', fontWeight: '600', textAlign: 'center' },
-  secondaryAction: {
-    borderWidth: 1,
-    borderColor: COLORS.accent,
-    borderRadius: 12,
-    padding: 14,
-    backgroundColor: '#fff',
-  },
-  secondaryActionText: { color: COLORS.accent, fontWeight: '600', textAlign: 'center' },
-  label: { fontSize: 14, fontWeight: '600', color: COLORS.text, marginBottom: 8 },
+  secondaryAction: { borderWidth: 1, borderRadius: 12, padding: 14 },
+  secondaryActionText: { fontWeight: '600', textAlign: 'center' },
+  label: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
   sessionList: { gap: 10, marginBottom: 20 },
-  sessionCard: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  sessionCardActive: {
-    borderColor: COLORS.accent,
-    backgroundColor: '#EFF6FF',
-  },
-  sessionTitle: { fontSize: 16, fontWeight: '600', color: COLORS.text },
-  sessionTitleActive: { color: COLORS.accent },
-  sessionMeta: { marginTop: 4, color: COLORS.muted, fontSize: 13 },
-  sessionMetaActive: { color: COLORS.accent },
+  sessionCard: { borderRadius: 16, padding: 14, borderWidth: 1 },
+  sessionTitle: { fontSize: 16, fontWeight: '600' },
+  sessionMeta: { marginTop: 4, fontSize: 13 },
   primary: {
-    backgroundColor: COLORS.accent,
+    flexDirection: 'row',
+    backgroundColor: '#1E2D4A',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
-  primaryText: { color: '#fff', fontWeight: '600', textAlign: 'center', fontSize: 16 },
+  primaryText: {
+    color: '#fff',
+    fontWeight: '600',
+    textAlign: 'center',
+    fontSize: 16,
+  },
   secondary: {
     borderWidth: 1,
-    borderColor: COLORS.accent,
     borderRadius: 12,
     padding: 16,
+    alignItems: 'center',
   },
-  secondaryText: { color: COLORS.accent, fontWeight: '600', textAlign: 'center', fontSize: 16 },
+  secondaryText: { fontWeight: '600', textAlign: 'center', fontSize: 16 },
   disabled: { opacity: 0.5 },
-  emptyText: { color: COLORS.muted, marginBottom: 20 },
+  emptyText: { marginBottom: 20 },
   errorText: { color: '#DC2626', marginBottom: 20 },
 });

@@ -18,4 +18,6 @@ export const STORAGE_KEYS = {
   ACCESS_TOKEN: 'cardvault_access_token',
   REFRESH_TOKEN: 'cardvault_refresh_token',
   USER: 'cardvault_user',
+  SYNC_QUEUE: 'cardvault_sync_queue',
+  LAST_SYNCED_AT: 'cardvault_last_synced_at',
 } as const;

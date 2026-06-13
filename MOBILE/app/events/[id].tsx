@@ -1,3 +1,18 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+
+import SessionMemberAvatars from '@/components/SessionMemberAvatars';
+import { useThemeColors } from '@/hooks/useThemeColors';
 import { api } from '@/lib/api';
 import {
   fetchContacts,
@@ -7,20 +22,16 @@ import {
   getApiErrorMessage,
   joinSession,
 } from '@/lib/api-client';
-import { COLORS } from '@/lib/constants';
 import { formatCaptureMode, formatLeadLabel, leadColor } from '@/lib/format';
 import type { CaptureMode, ContactRecord } from '@/lib/types';
-import SessionMemberAvatars from '@/components/SessionMemberAvatars';
 import { useSessionStore } from '@/stores/session-store';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 const GROUP_ORDER: CaptureMode[] = ['visitor', 'exhibitor', 'quick_capture'];
 
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const colors = useThemeColors();
   const qc = useQueryClient();
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
   const sessionQuery = useQuery({
@@ -56,15 +67,15 @@ export default function EventDetailScreen() {
 
   if (sessionQuery.isLoading || contactsQuery.isLoading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color={COLORS.accent} />
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
+        <ActivityIndicator color={colors.accent} />
       </View>
     );
   }
 
   if (sessionQuery.isError || contactsQuery.isError || !sessionQuery.data) {
     return (
-      <View style={styles.center}>
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
         <Text style={styles.errorText}>
           {sessionQuery.isError
             ? getApiErrorMessage(sessionQuery.error)
@@ -86,37 +97,59 @@ export default function EventDetailScreen() {
   const members = membersQuery.data ?? [];
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>{session.name}</Text>
-      <Text style={styles.subtitle}>
+    <ScrollView
+      style={[styles.root, { backgroundColor: colors.background }]}
+      contentContainerStyle={styles.content}
+    >
+      <Text style={[styles.title, { color: colors.text }]}>{session.name}</Text>
+      <Text style={[styles.subtitle, { color: colors.muted }]}>
         {formatCaptureMode(session.mode)} · {session.status}
         {session.location ? ` · ${session.location}` : ''}
       </Text>
 
-      <View style={styles.summaryCard}>
-        <Text style={styles.summaryLabel}>Live session stats</Text>
-        <Text style={styles.summaryValue}>{stats.scanCount} scans</Text>
-        <Text style={styles.summaryMeta}>
+      <View
+        style={[
+          styles.summaryCard,
+          { backgroundColor: colors.surface, borderColor: colors.cardBorder },
+        ]}
+      >
+        <Text style={[styles.summaryLabel, { color: colors.muted }]}>
+          Live session stats
+        </Text>
+        <Text style={[styles.summaryValue, { color: colors.text }]}>
+          {stats.scanCount} scans
+        </Text>
+        <Text style={[styles.summaryMeta, { color: colors.muted }]}>
           Hot {stats.hotCount} · Warm {stats.warmCount} · Cold {stats.coldCount}
         </Text>
       </View>
 
-      <View style={styles.teamCard}>
+      <View
+        style={[
+          styles.teamCard,
+          { backgroundColor: colors.surface, borderColor: colors.cardBorder },
+        ]}
+      >
         <View style={styles.teamHeader}>
-          <Text style={styles.teamTitle}>Team ({members.length})</Text>
+          <Text style={[styles.teamTitle, { color: colors.text }]}>
+            Team ({members.length})
+          </Text>
           <SessionMemberAvatars sessionId={session.id} />
         </View>
         {members.map((member) => (
-          <Text key={member.userId} style={styles.teamMember}>
+          <Text
+            key={member.userId}
+            style={[styles.teamMember, { color: colors.muted }]}
+          >
             {member.fullName ?? member.email}
           </Text>
         ))}
         <Pressable
-          style={styles.joinBtn}
+          style={[styles.joinBtn, { borderColor: colors.accent }]}
           onPress={() => joinMutation.mutate()}
           disabled={joinMutation.isPending}
         >
-          <Text style={styles.joinBtnText}>
+          <Text style={[styles.joinBtnText, { color: colors.accent }]}>
             {joinMutation.isPending ? 'Joining…' : 'Join session'}
           </Text>
         </Pressable>
@@ -124,13 +157,26 @@ export default function EventDetailScreen() {
 
       <View style={styles.actionRow}>
         <Pressable
-          style={styles.secondary}
-          onPress={() => router.push({ pathname: '/events/edit/[id]', params: { id: session.id } })}
+          style={[
+            styles.secondary,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+          onPress={() =>
+            router.push({
+              pathname: '/events/edit/[id]',
+              params: { id: session.id },
+            })
+          }
         >
-          <Text style={styles.secondaryText}>Edit event</Text>
+          <Text style={[styles.secondaryText, { color: colors.text }]}>
+            Edit event
+          </Text>
         </Pressable>
         <Pressable
-          style={styles.secondary}
+          style={[
+            styles.secondary,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
           onPress={() =>
             router.push({
               pathname: '/contact/create',
@@ -138,7 +184,9 @@ export default function EventDetailScreen() {
             })
           }
         >
-          <Text style={styles.secondaryText}>Add contact</Text>
+          <Text style={[styles.secondaryText, { color: colors.text }]}>
+            Add contact
+          </Text>
         </Pressable>
       </View>
 
@@ -149,18 +197,23 @@ export default function EventDetailScreen() {
           router.push('/(tabs)/scan');
         }}
       >
+        <Ionicons name="camera-outline" size={18} color="#FFFFFF" />
         <Text style={styles.primaryText}>Scan in this event</Text>
       </Pressable>
 
       {grouped.map((group) => (
         <View key={group.mode} style={styles.groupSection}>
-          <Text style={styles.groupTitle}>
+          <Text style={[styles.groupTitle, { color: colors.text }]}>
             {formatCaptureMode(group.mode)} ({group.items.length})
           </Text>
           {group.items.length ? (
-            group.items.map((contact) => <ContactCard key={contact.id} contact={contact} />)
+            group.items.map((contact) => (
+              <ContactCard key={contact.id} contact={contact} />
+            ))
           ) : (
-            <Text style={styles.emptyText}>No contacts in this category yet.</Text>
+            <Text style={[styles.emptyText, { color: colors.muted }]}>
+              No contacts in this category yet.
+            </Text>
           )}
         </View>
       ))}
@@ -170,97 +223,114 @@ export default function EventDetailScreen() {
 
 function ContactCard({ contact }: { contact: ContactRecord }) {
   const router = useRouter();
+  const colors = useThemeColors();
   return (
     <Pressable
-      style={styles.contactCard}
-      onPress={() => router.push({ pathname: '/contact/[id]', params: { id: contact.id } })}
+      style={[
+        styles.contactCard,
+        { backgroundColor: colors.surface, borderColor: colors.cardBorder },
+      ]}
+      onPress={() =>
+        router.push({ pathname: '/contact/[id]', params: { id: contact.id } })
+      }
     >
       <View style={styles.contactHeader}>
-        <Text style={styles.contactName}>{contact.fullName}</Text>
-        <View style={[styles.badge, { backgroundColor: leadColor(contact.leadQualifier) }]}>
-          <Text style={styles.badgeText}>{formatLeadLabel(contact.leadQualifier)}</Text>
+        <Text style={[styles.contactName, { color: colors.text }]}>
+          {contact.fullName}
+        </Text>
+        <View
+          style={[
+            styles.badge,
+            { backgroundColor: leadColor(contact.leadQualifier) },
+          ]}
+        >
+          <Text style={styles.badgeText}>
+            {formatLeadLabel(contact.leadQualifier)}
+          </Text>
         </View>
       </View>
-      <Text style={styles.contactMeta}>
-        {contact.company || 'No company'} · {formatCaptureMode(contact.captureMode)}
+      <Text style={[styles.contactMeta, { color: colors.muted }]}>
+        {contact.company || 'No company'} ·{' '}
+        {formatCaptureMode(contact.captureMode)}
       </Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
-  content: { padding: 16 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background, padding: 20 },
-  title: { fontSize: 24, fontWeight: '700', color: COLORS.text },
-  subtitle: { color: COLORS.muted, marginTop: 6, marginBottom: 16, lineHeight: 20 },
+  root: { flex: 1 },
+  content: { padding: 20, paddingBottom: 32 },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  title: { fontSize: 22, fontWeight: '800' },
+  subtitle: { marginTop: 6, marginBottom: 16, lineHeight: 20, fontSize: 14 },
   summaryCard: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: COLORS.border,
     marginBottom: 12,
   },
-  summaryLabel: { fontSize: 12, color: COLORS.muted, marginBottom: 4 },
-  summaryValue: { fontSize: 28, fontWeight: '700', color: COLORS.text },
-  summaryMeta: { marginTop: 6, color: COLORS.muted, fontSize: 13 },
-  teamCard: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    marginBottom: 12,
+  summaryLabel: { fontSize: 12, marginBottom: 4 },
+  summaryValue: { fontSize: 28, fontWeight: '700' },
+  summaryMeta: { marginTop: 6, fontSize: 13 },
+  teamCard: { borderRadius: 16, padding: 16, borderWidth: 1, marginBottom: 12 },
+  teamHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
   },
-  teamHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  teamTitle: { fontSize: 14, fontWeight: '700', color: COLORS.text },
-  teamMember: { fontSize: 13, color: COLORS.muted, marginBottom: 4 },
+  teamTitle: { fontSize: 14, fontWeight: '700' },
+  teamMember: { fontSize: 13, marginBottom: 4 },
   joinBtn: {
     marginTop: 8,
     borderWidth: 1,
-    borderColor: COLORS.accent,
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: 'center',
   },
-  joinBtnText: { color: COLORS.accent, fontWeight: '600' },
+  joinBtnText: { fontWeight: '600' },
   primary: {
-    backgroundColor: COLORS.accent,
+    flexDirection: 'row',
+    backgroundColor: '#1E2D4A',
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
-  primaryText: { color: '#fff', fontWeight: '600', textAlign: 'center', fontSize: 16 },
+  primaryText: {
+    color: '#fff',
+    fontWeight: '600',
+    textAlign: 'center',
+    fontSize: 16,
+  },
   actionRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
-  secondary: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 12,
-    padding: 14,
-  },
-  secondaryText: { color: COLORS.text, fontWeight: '600', textAlign: 'center' },
+  secondary: { flex: 1, borderWidth: 1, borderRadius: 12, padding: 14 },
+  secondaryText: { fontWeight: '600', textAlign: 'center' },
   groupSection: { marginBottom: 20 },
-  groupTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 10 },
-  emptyText: { color: COLORS.muted },
+  groupTitle: { fontSize: 16, fontWeight: '700', marginBottom: 10 },
+  emptyText: {},
   contactCard: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: COLORS.border,
     marginBottom: 10,
   },
-  contactHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, alignItems: 'center' },
-  contactName: { flex: 1, fontSize: 16, fontWeight: '600', color: COLORS.text },
-  contactMeta: { marginTop: 6, color: COLORS.muted },
-  badge: {
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+  contactHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+    alignItems: 'center',
   },
+  contactName: { flex: 1, fontSize: 16, fontWeight: '600' },
+  contactMeta: { marginTop: 6 },
+  badge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
   badgeText: { color: '#fff', fontWeight: '600', fontSize: 12 },
   errorText: { color: '#DC2626', textAlign: 'center' },
 });

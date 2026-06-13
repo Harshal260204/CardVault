@@ -36,5 +36,9 @@ export async function loadAuthSession(): Promise<{
 }
 
 export async function clearAuthSession(): Promise<void> {
-  await AsyncStorage.multiRemove([KEYS.accessToken, KEYS.refreshToken, KEYS.user]);
+  await AsyncStorage.multiRemove([
+    KEYS.accessToken,
+    KEYS.refreshToken,
+    KEYS.user,
+  ]);
 }

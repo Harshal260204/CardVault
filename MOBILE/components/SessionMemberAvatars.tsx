@@ -1,7 +1,8 @@
-import { api } from '@/lib/api';
-import { fetchSessionMembers } from '@/lib/api-client';
 import { useQuery } from '@tanstack/react-query';
 import { StyleSheet, Text, View } from 'react-native';
+
+import { api } from '@/lib/api';
+import { fetchSessionMembers } from '@/lib/api-client';
 
 const AVATAR_COLORS = ['#F87171', '#FBBF24', '#F97316', '#60A5FA', '#34D399'];
 
@@ -16,7 +17,11 @@ function getInitials(name: string | null, email: string): string {
   return email.slice(0, 2).toUpperCase();
 }
 
-export default function SessionMemberAvatars({ sessionId }: { sessionId: string }) {
+export default function SessionMemberAvatars({
+  sessionId,
+}: {
+  sessionId: string;
+}) {
   const members = useQuery({
     queryKey: ['session-members', sessionId],
     queryFn: () => fetchSessionMembers(api, sessionId),
@@ -48,7 +53,9 @@ export default function SessionMemberAvatars({ sessionId }: { sessionId: string 
         </View>
       ))}
       {items.length > 3 ? (
-        <View style={[styles.avatarCircle, styles.moreCircle, { marginLeft: -8 }]}>
+        <View
+          style={[styles.avatarCircle, styles.moreCircle, { marginLeft: -8 }]}
+        >
           <Text style={styles.avatarInitials}>+{items.length - 3}</Text>
         </View>
       ) : null}

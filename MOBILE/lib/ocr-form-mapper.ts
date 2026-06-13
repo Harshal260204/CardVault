@@ -63,7 +63,9 @@ export function firstFromListOrString(value: unknown): string {
 /**
  * Coerce API/Prisma JSON into a plain object (handles stringified JSON and null).
  */
-export function normalizeExtractedFields(raw: unknown): Record<string, unknown> {
+export function normalizeExtractedFields(
+  raw: unknown,
+): Record<string, unknown> {
   if (raw == null) {
     return {};
   }
@@ -84,7 +86,9 @@ export function normalizeExtractedFields(raw: unknown): Record<string, unknown> 
 }
 
 /** Stable key so React re-syncs when nested arrays (emails/phones) arrive. */
-export function extractedFieldsSyncKey(fields: Record<string, unknown>): string {
+export function extractedFieldsSyncKey(
+  fields: Record<string, unknown>,
+): string {
   return JSON.stringify({
     fullName: fields.fullName ?? '',
     company: fields.company ?? '',
@@ -116,7 +120,9 @@ export function extractPhoneFromRawText(rawText?: string | null): string {
   return match ? match[0].trim().replace(/\s{2,}/g, ' ') : '';
 }
 
-export function mapOcrJobToForm(job: MapOcrJobToFormOptions): OcrReviewFormValues {
+export function mapOcrJobToForm(
+  job: MapOcrJobToFormOptions,
+): OcrReviewFormValues {
   const fields = normalizeExtractedFields(job.extractedFields);
   const mapped = mapExtractedFieldsToForm(fields);
 
@@ -125,7 +131,9 @@ export function mapOcrJobToForm(job: MapOcrJobToFormOptions): OcrReviewFormValue
     mapped.email ||
     extractEmailFromRawText(job.rawText);
   const phone =
-    job.primaryPhone?.trim() || mapped.phone || extractPhoneFromRawText(job.rawText);
+    job.primaryPhone?.trim() ||
+    mapped.phone ||
+    extractPhoneFromRawText(job.rawText);
 
   return { ...mapped, email, phone };
 }
@@ -154,8 +162,10 @@ export function mapExtractedFieldsToForm(
     return { ...EMPTY_FORM };
   }
 
-  const rawEmail = firstFromListOrString(fields.emails) || stringField(fields, 'email');
-  const rawPhone = firstFromListOrString(fields.phones) || stringField(fields, 'phone');
+  const rawEmail =
+    firstFromListOrString(fields.emails) || stringField(fields, 'email');
+  const rawPhone =
+    firstFromListOrString(fields.phones) || stringField(fields, 'phone');
 
   return {
     fullName: stringField(fields, 'fullName'),

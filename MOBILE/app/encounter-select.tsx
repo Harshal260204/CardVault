@@ -1,8 +1,11 @@
-import { COLORS } from '@/lib/constants';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { formatEncounterType } from '@/lib/format';
 import type { EncounterType } from '@/lib/types';
 import { useSessionStore } from '@/stores/session-store';
-import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 const ENCOUNTER_TYPES: EncounterType[] = [
   'flight',
@@ -14,43 +17,194 @@ const ENCOUNTER_TYPES: EncounterType[] = [
   'other',
 ];
 
+const ENCOUNTER_META: Record<
+  EncounterType,
+  {
+    icon: keyof typeof Ionicons.glyphMap;
+    description: string;
+    iconBg: string;
+    iconColor: string;
+  }
+> = {
+  flight: {
+    icon: 'airplane-outline',
+    description: 'Met during travel or on a flight.',
+    iconBg: '#EFF6FF',
+    iconColor: '#2563EB',
+  },
+  b2b: {
+    icon: 'briefcase-outline',
+    description: 'Scheduled business meeting.',
+    iconBg: '#F1F5F9',
+    iconColor: '#475569',
+  },
+  airport: {
+    icon: 'location-outline',
+    description: 'Chance encounter at an airport.',
+    iconBg: '#FEF3C7',
+    iconColor: '#D97706',
+  },
+  dinner: {
+    icon: 'restaurant-outline',
+    description: 'Met over a meal or social dinner.',
+    iconBg: '#FCE7F3',
+    iconColor: '#DB2777',
+  },
+  referral: {
+    icon: 'people-outline',
+    description: 'Introduced by someone you know.',
+    iconBg: '#ECFDF5',
+    iconColor: '#059669',
+  },
+  hallway: {
+    icon: 'walk-outline',
+    description: 'Brief chat in passing.',
+    iconBg: '#F0FDF4',
+    iconColor: '#16A34A',
+  },
+  other: {
+    icon: 'ellipsis-horizontal-outline',
+    description: 'Another type of encounter.',
+    iconBg: '#F1F5F9',
+    iconColor: '#64748B',
+  },
+};
+
 export default function EncounterSelectScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const isDark = colors.isDark;
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
 
   return (
-    <View style={styles.root}>
-      <Text style={styles.title}>Quick capture — encounter type</Text>
-      <Text style={styles.subtitle}>How did you meet this contact?</Text>
-      <View style={styles.grid}>
-        {ENCOUNTER_TYPES.map((type) => (
+    <ScrollView
+      style={[styles.root, { backgroundColor: colors.background }]}
+      contentContainerStyle={styles.content}
+    >
+      <View
+        style={[
+          styles.heroCard,
+          { backgroundColor: colors.surface, borderColor: colors.cardBorder },
+        ]}
+      >
+        <View
+          style={[
+            styles.heroIconBg,
+            { backgroundColor: isDark ? '#065F46' : '#F0FDF4' },
+          ]}
+        >
+          <Ionicons
+            name="flash-outline"
+            size={22}
+            color={isDark ? '#34D399' : '#16A34A'}
+          />
+        </View>
+        <View style={styles.heroContent}>
+          <Text style={[styles.heroTitle, { color: colors.text }]}>
+            Quick Capture
+          </Text>
+          <Text style={[styles.heroDesc, { color: colors.muted }]}>
+            How did you meet this contact? Pick an encounter type before
+            scanning.
+          </Text>
+        </View>
+      </View>
+
+      <Text style={[styles.sectionTitle, { color: colors.muted }]}>
+        Encounter type
+      </Text>
+
+      {ENCOUNTER_TYPES.map((type) => {
+        const meta = ENCOUNTER_META[type];
+        return (
           <Pressable
             key={type}
-            style={styles.tile}
+            style={[
+              styles.tile,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.cardBorder,
+              },
+            ]}
             onPress={() => {
               setActiveSession(undefined, 'quick_capture', type);
               router.replace('/(tabs)/home?openScanner=1');
             }}
           >
-            <Text style={styles.tileText}>{type}</Text>
+            <View
+              style={[
+                styles.tileIconBg,
+                { backgroundColor: isDark ? '#0F172A' : meta.iconBg },
+              ]}
+            >
+              <Ionicons
+                name={meta.icon}
+                size={20}
+                color={isDark ? '#94A3B8' : meta.iconColor}
+              />
+            </View>
+            <View style={styles.tileContent}>
+              <Text style={[styles.tileTitle, { color: colors.text }]}>
+                {formatEncounterType(type)}
+              </Text>
+              <Text style={[styles.tileDesc, { color: colors.muted }]}>
+                {meta.description}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.muted} />
           </Pressable>
-        ))}
-      </View>
-    </View>
+        );
+      })}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, padding: 20, backgroundColor: COLORS.background },
-  title: { fontSize: 18, fontWeight: '600', color: COLORS.text, marginBottom: 6 },
-  subtitle: { fontSize: 14, color: COLORS.muted, marginBottom: 16 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  tile: {
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    backgroundColor: COLORS.surface,
-    borderRadius: 10,
-    minWidth: '45%',
+  root: { flex: 1 },
+  content: { padding: 20, paddingBottom: 32 },
+  heroCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    marginBottom: 24,
+    gap: 12,
   },
-  tileText: { color: COLORS.text, textTransform: 'capitalize' },
+  heroIconBg: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroContent: { flex: 1 },
+  heroTitle: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  heroDesc: { fontSize: 13, lineHeight: 18 },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 12,
+  },
+  tile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    marginBottom: 10,
+    gap: 12,
+  },
+  tileIconBg: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tileContent: { flex: 1 },
+  tileTitle: { fontSize: 14, fontWeight: '700', marginBottom: 2 },
+  tileDesc: { fontSize: 11, lineHeight: 14 },
 });

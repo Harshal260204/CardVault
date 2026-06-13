@@ -1,3 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -8,17 +11,17 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
-import { Link, useRouter } from 'expo-router';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 
-import { api } from '@/lib/api';
-import { fetchContacts, getApiErrorMessage } from '@/lib/api-client';
-import { COLORS } from '@/lib/constants';
-import { initials } from '@/lib/format';
 import CameraScannerModal from '@/components/CameraScannerModal';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { api } from '@/lib/api';
+import { fetchContacts } from '@/lib/api-client';
+import { COLORS } from '@/lib/constants';
+import { initials } from '@/lib/format';
 
 function getAvatarBg(name: string): string {
   const colors = [
@@ -31,7 +34,9 @@ function getAvatarBg(name: string): string {
     '#EC4899', // Pink
   ];
   if (!name) return colors[0];
-  const charCodeSum = name.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  const charCodeSum = name
+    .split('')
+    .reduce((sum, char) => sum + char.charCodeAt(0), 0);
   return colors[charCodeSum % colors.length];
 }
 
@@ -69,15 +74,28 @@ export default function ContactsScreen() {
   });
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      edges={['top', 'left', 'right']}
+    >
       {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.text }]}>Contacts</Text>
       </View>
 
       {/* Search Bar */}
-      <View style={[styles.searchContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Ionicons name="search" size={20} color={colors.muted} style={styles.searchIcon} />
+      <View
+        style={[
+          styles.searchContainer,
+          { backgroundColor: colors.surface, borderColor: colors.border },
+        ]}
+      >
+        <Ionicons
+          name="search"
+          size={20}
+          color={colors.muted}
+          style={styles.searchIcon}
+        />
         <TextInput
           style={[styles.search, { color: colors.text }]}
           placeholder="Search name, company, role"
@@ -99,32 +117,64 @@ export default function ContactsScreen() {
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="people-outline" size={48} color={colors.muted} />
-              <Text style={[styles.empty, { color: colors.muted }]}>No contacts found</Text>
+              <Text style={[styles.empty, { color: colors.muted }]}>
+                No contacts found
+              </Text>
             </View>
           }
           renderItem={({ item }) => {
-            const subtitle = item.title 
-              ? `${item.title}${item.company ? ` · ${item.company}` : ''}` 
+            const subtitle = item.title
+              ? `${item.title}${item.company ? ` · ${item.company}` : ''}`
               : item.company || item.emails[0] || '—';
-            
+
             return (
-              <Pressable 
-                style={[styles.row, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                onPress={() => router.push({ pathname: '/contact/[id]', params: { id: item.id } })}
+              <Pressable
+                style={[
+                  styles.row,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                  },
+                ]}
+                onPress={() =>
+                  router.push({
+                    pathname: '/contact/[id]',
+                    params: { id: item.id },
+                  })
+                }
               >
                 {/* Left Avatar circle */}
-                <View style={[styles.avatarCircle, { backgroundColor: getAvatarBg(item.fullName) }]}>
-                  <Text style={styles.avatarText}>{initials(item.fullName)}</Text>
+                <View
+                  style={[
+                    styles.avatarCircle,
+                    { backgroundColor: getAvatarBg(item.fullName) },
+                  ]}
+                >
+                  <Text style={styles.avatarText}>
+                    {initials(item.fullName)}
+                  </Text>
                 </View>
 
                 {/* Contact Info */}
                 <View style={styles.info}>
-                  <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{item.fullName}</Text>
-                  <Text style={[styles.subtitle, { color: colors.muted }]} numberOfLines={1}>{subtitle}</Text>
+                  <Text
+                    style={[styles.name, { color: colors.text }]}
+                    numberOfLines={1}
+                  >
+                    {item.fullName}
+                  </Text>
+                  <Text
+                    style={[styles.subtitle, { color: colors.muted }]}
+                    numberOfLines={1}
+                  >
+                    {subtitle}
+                  </Text>
                 </View>
 
                 {/* Relative Time */}
-                <Text style={[styles.time, { color: colors.muted }]}>{formatRelativeTime(item.createdAt)}</Text>
+                <Text style={[styles.time, { color: colors.muted }]}>
+                  {formatRelativeTime(item.createdAt)}
+                </Text>
               </Pressable>
             );
           }}
@@ -132,8 +182,11 @@ export default function ContactsScreen() {
       )}
 
       {/* FAB */}
-      <Pressable 
-        style={[styles.fab, { bottom: 56 + (insets.bottom > 0 ? insets.bottom : 8) + 16 }]} 
+      <Pressable
+        style={[
+          styles.fab,
+          { bottom: 56 + (insets.bottom > 0 ? insets.bottom : 8) + 16 },
+        ]}
         onPress={() => setScannerVisible(true)}
       >
         <Ionicons name="camera" size={24} color="#FFFFFF" />

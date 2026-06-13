@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+
 import { API_BASE_PATH } from '@/lib/constants';
 
 const rawApiHost =
@@ -10,7 +11,10 @@ let accessToken: string | null = null;
 
 /** Ensure scheme + no trailing slash (e.g. http://192.168.1.13:8000). */
 export function getApiHost(): string {
-  let host = rawApiHost.trim().replace(/\/api\/v1\/?$/i, '').replace(/\/$/, '');
+  let host = rawApiHost
+    .trim()
+    .replace(/\/api\/v1\/?$/i, '')
+    .replace(/\/$/, '');
   if (!/^https?:\/\//i.test(host)) {
     host = `http://${host}`;
   }

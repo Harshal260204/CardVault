@@ -1,15 +1,31 @@
-import { api } from '@/lib/api';
-import { closeSession, deleteSession, fetchSession, getApiErrorMessage, updateSession } from '@/lib/api-client';
-import { COLORS } from '@/lib/constants';
-import { formatCaptureMode } from '@/lib/format';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { api } from '@/lib/api';
+import {
+  closeSession,
+  deleteSession,
+  fetchSession,
+  getApiErrorMessage,
+  updateSession,
+} from '@/lib/api-client';
+import { formatCaptureMode } from '@/lib/format';
 
 export default function EditEventScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const colors = useThemeColors();
   const queryClient = useQueryClient();
   const sessionQuery = useQuery({
     queryKey: ['session', id],
@@ -48,7 +64,8 @@ export default function EditEventScreen() {
       ]);
       router.replace({ pathname: '/events/[id]', params: { id: id! } });
     },
-    onError: (error) => Alert.alert('Unable to update event', getApiErrorMessage(error)),
+    onError: (error) =>
+      Alert.alert('Unable to update event', getApiErrorMessage(error)),
   });
 
   const closeMutation = useMutation({
@@ -60,7 +77,8 @@ export default function EditEventScreen() {
       ]);
       router.replace({ pathname: '/events/[id]', params: { id: id! } });
     },
-    onError: (error) => Alert.alert('Unable to close event', getApiErrorMessage(error)),
+    onError: (error) =>
+      Alert.alert('Unable to close event', getApiErrorMessage(error)),
   });
 
   const deleteMutation = useMutation({
@@ -69,120 +87,207 @@ export default function EditEventScreen() {
       await queryClient.invalidateQueries({ queryKey: ['sessions'] });
       router.replace('/(tabs)/events');
     },
-    onError: (error) => Alert.alert('Unable to delete event', getApiErrorMessage(error)),
+    onError: (error) =>
+      Alert.alert('Unable to delete event', getApiErrorMessage(error)),
   });
 
   if (sessionQuery.isLoading || !sessionQuery.data) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.loadingText}>{sessionQuery.isLoading ? 'Loading event...' : 'Unable to load event.'}</Text>
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
+        <Text style={[styles.loadingText, { color: colors.muted }]}>
+          {sessionQuery.isLoading
+            ? 'Loading event...'
+            : 'Unable to load event.'}
+        </Text>
       </View>
     );
   }
 
   const session = sessionQuery.data;
+  const inputStyle = [
+    styles.input,
+    {
+      backgroundColor: colors.inputBg,
+      borderColor: colors.border,
+      color: colors.text,
+    },
+  ];
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Edit event</Text>
-      <Text style={styles.subtitle}>Category is fixed after creation: {formatCaptureMode(session.mode)}</Text>
+    <ScrollView
+      style={[styles.root, { backgroundColor: colors.background }]}
+      contentContainerStyle={styles.content}
+    >
+      <Text style={[styles.title, { color: colors.text }]}>Edit event</Text>
+      <Text style={[styles.subtitle, { color: colors.muted }]}>
+        Category is fixed after creation: {formatCaptureMode(session.mode)}
+      </Text>
 
-      <Text style={styles.label}>Event name</Text>
-      <TextInput value={name} onChangeText={setName} style={styles.input} placeholder="Event name" placeholderTextColor={COLORS.muted} />
+      <Text style={[styles.label, { color: colors.text }]}>Event name</Text>
+      <TextInput
+        value={name}
+        onChangeText={setName}
+        style={inputStyle}
+        placeholder="Event name"
+        placeholderTextColor={colors.placeholder}
+      />
 
-      <Text style={styles.label}>Event type</Text>
-      <TextInput value={eventType} onChangeText={setEventType} style={styles.input} placeholder="Meetup, Expo, Conference" placeholderTextColor={COLORS.muted} />
+      <Text style={[styles.label, { color: colors.text }]}>Event type</Text>
+      <TextInput
+        value={eventType}
+        onChangeText={setEventType}
+        style={inputStyle}
+        placeholder="Meetup, Expo, Conference"
+        placeholderTextColor={colors.placeholder}
+      />
 
-      <Text style={styles.label}>Location</Text>
-      <TextInput value={location} onChangeText={setLocation} style={styles.input} placeholder="Location" placeholderTextColor={COLORS.muted} />
+      <Text style={[styles.label, { color: colors.text }]}>Location</Text>
+      <TextInput
+        value={location}
+        onChangeText={setLocation}
+        style={inputStyle}
+        placeholder="Location"
+        placeholderTextColor={colors.placeholder}
+      />
 
-      <Text style={styles.label}>Start date</Text>
-      <TextInput value={startDate} onChangeText={setStartDate} style={styles.input} placeholder="YYYY-MM-DD" placeholderTextColor={COLORS.muted} />
+      <Text style={[styles.label, { color: colors.text }]}>Start date</Text>
+      <TextInput
+        value={startDate}
+        onChangeText={setStartDate}
+        style={inputStyle}
+        placeholder="YYYY-MM-DD"
+        placeholderTextColor={colors.placeholder}
+      />
 
-      <Text style={styles.label}>End date</Text>
-      <TextInput value={endDate} onChangeText={setEndDate} style={styles.input} placeholder="YYYY-MM-DD" placeholderTextColor={COLORS.muted} />
+      <Text style={[styles.label, { color: colors.text }]}>End date</Text>
+      <TextInput
+        value={endDate}
+        onChangeText={setEndDate}
+        style={inputStyle}
+        placeholder="YYYY-MM-DD"
+        placeholderTextColor={colors.placeholder}
+      />
 
       <Pressable
-        style={[styles.primaryButton, saveMutation.isPending && styles.disabledButton]}
+        style={[
+          styles.primaryButton,
+          saveMutation.isPending && styles.disabledButton,
+        ]}
         onPress={() => saveMutation.mutate()}
         disabled={saveMutation.isPending}
       >
-        <Text style={styles.primaryButtonText}>{saveMutation.isPending ? 'Saving...' : 'Save changes'}</Text>
+        <Text style={styles.primaryButtonText}>
+          {saveMutation.isPending ? 'Saving...' : 'Save changes'}
+        </Text>
       </Pressable>
 
       {session.status !== 'closed' ? (
         <Pressable
-          style={[styles.secondaryButton, closeMutation.isPending && styles.disabledButton]}
+          style={[
+            styles.secondaryButton,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+            closeMutation.isPending && styles.disabledButton,
+          ]}
           onPress={() =>
-            Alert.alert('Close event', 'You will no longer be able to scan into this event.', [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Close event', onPress: () => closeMutation.mutate() },
-            ])
+            Alert.alert(
+              'Close event',
+              'You will no longer be able to scan into this event.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Close event', onPress: () => closeMutation.mutate() },
+              ],
+            )
           }
           disabled={closeMutation.isPending}
         >
-          <Text style={styles.secondaryButtonText}>{closeMutation.isPending ? 'Closing...' : 'Close event'}</Text>
+          <Text style={[styles.secondaryButtonText, { color: colors.text }]}>
+            {closeMutation.isPending ? 'Closing...' : 'Close event'}
+          </Text>
         </Pressable>
       ) : null}
 
       <Pressable
-        style={[styles.dangerButton, deleteMutation.isPending && styles.disabledButton]}
+        style={[
+          styles.dangerButton,
+          closeMutation.isPending && styles.disabledButton,
+        ]}
         onPress={() =>
-          Alert.alert('Delete event', 'This hides the event from the app. Existing records stay in the database.', [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Delete event', style: 'destructive', onPress: () => deleteMutation.mutate() },
-          ])
+          Alert.alert(
+            'Delete event',
+            'This hides the event from the app. Existing records stay in the database.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Delete event',
+                style: 'destructive',
+                onPress: () => deleteMutation.mutate(),
+              },
+            ],
+          )
         }
         disabled={deleteMutation.isPending}
       >
-        <Text style={styles.dangerButtonText}>{deleteMutation.isPending ? 'Deleting...' : 'Delete event'}</Text>
+        <Text style={styles.dangerButtonText}>
+          {deleteMutation.isPending ? 'Deleting...' : 'Delete event'}
+        </Text>
       </Pressable>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.background },
-  content: { padding: 16 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background, padding: 20 },
-  loadingText: { color: COLORS.muted },
-  title: { fontSize: 24, fontWeight: '700', color: COLORS.text },
-  subtitle: { color: COLORS.muted, marginTop: 6, marginBottom: 20, lineHeight: 20 },
-  label: { fontSize: 14, fontWeight: '600', color: COLORS.text, marginBottom: 8, marginTop: 4 },
+  root: { flex: 1 },
+  content: { padding: 20, paddingBottom: 32 },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {},
+  title: { fontSize: 22, fontWeight: '800' },
+  subtitle: { marginTop: 6, marginBottom: 20, lineHeight: 20, fontSize: 14 },
+  label: { fontSize: 14, fontWeight: '600', marginBottom: 8, marginTop: 4 },
   input: {
-    backgroundColor: '#fff',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: COLORS.text,
     marginBottom: 12,
+    fontSize: 16,
   },
   primaryButton: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: '#1E2D4A',
     borderRadius: 12,
     padding: 16,
     marginTop: 8,
   },
-  primaryButtonText: { color: '#fff', fontWeight: '600', textAlign: 'center', fontSize: 16 },
+  primaryButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    textAlign: 'center',
+    fontSize: 16,
+  },
   secondaryButton: {
-    backgroundColor: '#fff',
-    borderColor: COLORS.border,
     borderWidth: 1,
     borderRadius: 12,
     padding: 16,
     marginTop: 12,
   },
-  secondaryButtonText: { color: COLORS.text, fontWeight: '600', textAlign: 'center', fontSize: 16 },
+  secondaryButtonText: { fontWeight: '600', textAlign: 'center', fontSize: 16 },
   dangerButton: {
     backgroundColor: '#fff5f5',
-    borderColor: COLORS.error,
+    borderColor: '#DC2626',
     borderWidth: 1,
     borderRadius: 12,
     padding: 16,
     marginTop: 12,
   },
-  dangerButtonText: { color: COLORS.error, fontWeight: '600', textAlign: 'center', fontSize: 16 },
+  dangerButtonText: {
+    color: '#DC2626',
+    fontWeight: '600',
+    textAlign: 'center',
+    fontSize: 16,
+  },
   disabledButton: { opacity: 0.7 },
 });

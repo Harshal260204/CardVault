@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+
 import type { UserProfile } from '@/lib/types';
 
 interface AuthState {
@@ -8,7 +9,11 @@ interface AuthState {
   hydrated: boolean;
   setUser: (user: UserProfile | null) => void;
   setHydrated: (hydrated: boolean) => void;
-  setSession: (user: UserProfile, accessToken: string, refreshToken: string) => void;
+  setSession: (
+    user: UserProfile,
+    accessToken: string,
+    refreshToken: string,
+  ) => void;
   clearSession: () => void;
 }
 

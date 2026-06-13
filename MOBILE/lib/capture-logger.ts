@@ -8,7 +8,11 @@ const TAG = '[CardCapture]';
 
 type LogPayload = Record<string, unknown>;
 
-function write(level: 'log' | 'warn' | 'error', message: string, payload?: LogPayload): void {
+function write(
+  level: 'log' | 'warn' | 'error',
+  message: string,
+  payload?: LogPayload,
+): void {
   if (payload && Object.keys(payload).length > 0) {
     console[level](`${TAG} ${message}`, payload);
   } else {
@@ -29,7 +33,10 @@ function errorDetails(error: unknown): LogPayload {
       code: ax.code,
       status: ax.response?.status,
       responseData: ax.response?.data,
-      url: ax.config?.baseURL && ax.config?.url ? `${ax.config.baseURL}${ax.config.url}` : undefined,
+      url:
+        ax.config?.baseURL && ax.config?.url
+          ? `${ax.config.baseURL}${ax.config.url}`
+          : undefined,
       method: ax.config?.method,
     };
   }
@@ -106,7 +113,9 @@ export const captureLog = {
   }) {
     const raw = payload.rawText?.trim() ?? '';
     const rawPreview =
-      raw.length > 500 ? `${raw.slice(0, 500)}\n… [${raw.length} chars total]` : raw || '(empty)';
+      raw.length > 500
+        ? `${raw.slice(0, 500)}\n… [${raw.length} chars total]`
+        : raw || '(empty)';
     const fields = payload.extractedFields ?? {};
     const hasStructured =
       Boolean(String(fields.fullName ?? '').trim()) ||

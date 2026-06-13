@@ -1,6 +1,8 @@
-import type { CaptureMode, LeadQualifier } from '@/lib/types';
+import type { CaptureMode, EncounterType, LeadQualifier } from '@/lib/types';
 
-export function formatLeadLabel(qualifier: LeadQualifier | null | undefined): string {
+export function formatLeadLabel(
+  qualifier: LeadQualifier | null | undefined,
+): string {
   if (!qualifier) return 'Unqualified';
   return qualifier.charAt(0).toUpperCase() + qualifier.slice(1);
 }
@@ -12,7 +14,9 @@ export function leadColor(qualifier: LeadQualifier | null | undefined): string {
   return '#94A3B8';
 }
 
-export function formatCaptureMode(mode: CaptureMode | null | undefined): string {
+export function formatCaptureMode(
+  mode: CaptureMode | null | undefined,
+): string {
   const labels: Record<CaptureMode, string> = {
     visitor: 'Visitor',
     exhibitor: 'Exhibitor',
@@ -21,6 +25,19 @@ export function formatCaptureMode(mode: CaptureMode | null | undefined): string 
   };
   if (!mode) return 'Legacy';
   return labels[mode] ?? mode;
+}
+
+export function formatEncounterType(type: EncounterType): string {
+  const labels: Record<EncounterType, string> = {
+    flight: 'Flight',
+    b2b: 'B2B Meeting',
+    airport: 'Airport',
+    dinner: 'Dinner',
+    referral: 'Referral',
+    hallway: 'Hallway',
+    other: 'Other',
+  };
+  return labels[type] ?? type;
 }
 
 export function initials(name: string): string {

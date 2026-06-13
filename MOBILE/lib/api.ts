@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { createApiClient } from '@/lib/api-client';
-import { API_BASE_PATH, STORAGE_KEYS } from '@/lib/constants';
 import { getApiHost, getAccessToken, setAccessToken } from '@/lib/api-config';
+import { API_BASE_PATH, STORAGE_KEYS } from '@/lib/constants';
 import type { UserProfile } from '@/lib/types';
 import { useAuthStore } from '@/stores/auth-store';
 

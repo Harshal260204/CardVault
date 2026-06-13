@@ -6,7 +6,12 @@ export type UserRole =
   | 'platform_super_admin';
 export type CaptureMode = 'visitor' | 'exhibitor' | 'quick_capture' | 'legacy';
 export type LeadQualifier = 'hot' | 'warm' | 'cold';
-export type OcrStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'manual_fallback';
+export type OcrStatus =
+  | 'pending'
+  | 'processing'
+  | 'completed'
+  | 'failed'
+  | 'manual_fallback';
 
 export interface ApiMeta {
   page?: number;
@@ -101,6 +106,36 @@ export interface OcrRelationshipMatch {
   matchConfidence: number;
 }
 
+export interface ContactEncounterRecord {
+  id: string;
+  contactId: string;
+  sessionId: string | null;
+  captureMode: CaptureMode | null;
+  encounterType: string | null;
+  encounterLabel: string | null;
+  leadQualifier: LeadQualifier | null;
+  leadNote: string | null;
+  followUpDate: string | null;
+  notes: string | null;
+  createdAt: string;
+}
+
+export interface PendingCaptureRecord {
+  id: string;
+  clientIdempotencyKey: string;
+  imageUri: string;
+  fileName: string;
+  mimeType: string;
+  captureMode: CaptureMode;
+  sessionId?: string;
+  encounterType?: EncounterType;
+  createdAt: string;
+  status: 'pending' | 'syncing' | 'failed';
+  errorMessage?: string;
+}
+
+export type SyncStatus = 'idle' | 'syncing' | 'error' | 'offline';
+
 export type EncounterType =
   | 'flight'
   | 'b2b'
@@ -110,7 +145,12 @@ export type EncounterType =
   | 'hallway'
   | 'other';
 
-export type ExportStatus = 'pending' | 'processing' | 'ready' | 'failed' | 'expired';
+export type ExportStatus =
+  | 'pending'
+  | 'processing'
+  | 'ready'
+  | 'failed'
+  | 'expired';
 
 export interface SessionMemberRecord {
   userId: string;

@@ -1,14 +1,4 @@
-import { api } from '@/lib/api';
-import { confirmOcrJob, fetchImageUrl, fetchOcrJob, getApiErrorMessage } from '@/lib/api-client';
-import { captureLog } from '@/lib/capture-logger';
-import { COLORS } from '@/lib/constants';
-import {
-  extractedFieldsSyncKey,
-  mapOcrJobToForm,
-  mergeFormWithMapped,
-  normalizeExtractedFields,
-} from '@/lib/ocr-form-mapper';
-import type { LeadQualifier, OcrRelationshipMatch } from '@/lib/types';
+import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -23,9 +13,28 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
+
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { api } from '@/lib/api';
+import {
+  confirmOcrJob,
+  fetchImageUrl,
+  fetchOcrJob,
+  getApiErrorMessage,
+} from '@/lib/api-client';
+import { captureLog } from '@/lib/capture-logger';
+import { COLORS } from '@/lib/constants';
+import {
+  extractedFieldsSyncKey,
+  mapOcrJobToForm,
+  mergeFormWithMapped,
+  normalizeExtractedFields,
+} from '@/lib/ocr-form-mapper';
+import type { LeadQualifier } from '@/lib/types';
 import { useSessionStore } from '@/stores/session-store';
 
 function isReviewReady(status: string): boolean {
@@ -150,7 +159,9 @@ export default function OcrReviewScreen() {
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
         <ActivityIndicator color={colors.accent} size="large" />
-        <Text style={[styles.status, { color: colors.muted }]}>Processing scan…</Text>
+        <Text style={[styles.status, { color: colors.muted }]}>
+          Processing scan…
+        </Text>
       </View>
     );
   }
@@ -159,7 +170,10 @@ export default function OcrReviewScreen() {
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
         <Text style={styles.error}>OCR failed. Try scanning again.</Text>
-        <Pressable style={[styles.centerBtn, { backgroundColor: colors.accent }]} onPress={() => router.back()}>
+        <Pressable
+          style={[styles.centerBtn, { backgroundColor: colors.accent }]}
+          onPress={() => router.back()}
+        >
           <Text style={styles.centerBtnText}>Go back</Text>
         </Pressable>
       </View>
@@ -170,72 +184,155 @@ export default function OcrReviewScreen() {
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
         <ActivityIndicator color={colors.accent} size="large" />
-        <Text style={[styles.status, { color: colors.muted }]}>Status: {job.status}</Text>
+        <Text style={[styles.status, { color: colors.muted }]}>
+          Status: {job.status}
+        </Text>
       </View>
     );
   }
 
-  const confidence = job.meanConfidence != null ? Math.round(job.meanConfidence * 100) : null;
+  const confidence =
+    job.meanConfidence != null ? Math.round(job.meanConfidence * 100) : null;
   const firstMatch = job.matches?.[0];
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right', 'bottom']}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      edges={['top', 'left', 'right', 'bottom']}
+    >
       {/* Custom Header */}
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <Pressable onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: isDark ? '#1E293B' : '#F1F5F9' }]}>
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: colors.surface, borderBottomColor: colors.border },
+        ]}
+      >
+        <Pressable
+          onPress={() => router.back()}
+          style={[
+            styles.backBtn,
+            { backgroundColor: isDark ? '#1E293B' : '#F1F5F9' },
+          ]}
+        >
           <Ionicons name="arrow-back" size={20} color={colors.text} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Review Scan</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>
+          Review Scan
+        </Text>
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView style={[styles.root, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={[styles.root, { backgroundColor: colors.background }]}
+        contentContainerStyle={styles.content}
+      >
         {/* Card Preview Container */}
-        <View style={[styles.cardPreview, { backgroundColor: isDark ? '#1E293B' : '#E8EDF4', borderColor: colors.border }]}>
+        <View
+          style={[
+            styles.cardPreview,
+            {
+              backgroundColor: isDark ? '#1E293B' : '#E8EDF4',
+              borderColor: colors.border,
+            },
+          ]}
+        >
           {imageQuery.data?.url ? (
-            <Image source={{ uri: imageQuery.data.url }} style={styles.cardImage} resizeMode="contain" />
+            <Image
+              source={{ uri: imageQuery.data.url }}
+              style={styles.cardImage}
+              resizeMode="contain"
+            />
           ) : imageQuery.isLoading ? (
             <ActivityIndicator color={colors.accent} />
           ) : (
             <>
               <Ionicons name="camera-outline" size={36} color={colors.muted} />
-              <Text style={[styles.cardPreviewText, { color: colors.muted }]}>Captured card</Text>
+              <Text style={[styles.cardPreviewText, { color: colors.muted }]}>
+                Captured card
+              </Text>
             </>
           )}
           {confidence != null && (
             <View style={styles.extractedBadge}>
-              <Text style={styles.extractedBadgeText}>{confidence}% extracted</Text>
+              <Text style={styles.extractedBadgeText}>
+                {confidence}% extracted
+              </Text>
             </View>
           )}
         </View>
 
         {/* Duplicate warning banner */}
         {job.matches.length > 0 && showDuplicateBanner && firstMatch && (
-          <View style={[styles.duplicateBanner, isDark && { backgroundColor: '#1E293B', borderColor: '#451A03' }]}>
+          <View
+            style={[
+              styles.duplicateBanner,
+              isDark && { backgroundColor: '#1E293B', borderColor: '#451A03' },
+            ]}
+          >
             <View style={styles.duplicateIconBg}>
               <Ionicons name="warning" size={20} color="#D97706" />
             </View>
             <View style={styles.duplicateContent}>
               <Text style={styles.duplicateTitle}>Possible duplicate</Text>
-              <Text style={[styles.duplicateText, isDark && { color: '#F59E0B' }]}>
-                Similar contact found: <Text style={{ fontWeight: '700', color: colors.text }}>{firstMatch.matchedContactName}</Text>
-                {firstMatch.matchedContactCompany ? `, ${firstMatch.matchedContactCompany}` : ''}
+              <Text
+                style={[styles.duplicateText, isDark && { color: '#F59E0B' }]}
+              >
+                Similar contact found:{' '}
+                <Text style={{ fontWeight: '700', color: colors.text }}>
+                  {firstMatch.matchedContactName}
+                </Text>
+                {firstMatch.matchedContactCompany
+                  ? `, ${firstMatch.matchedContactCompany}`
+                  : ''}
               </Text>
               <View style={styles.duplicateActions}>
                 <Pressable
-                  style={[styles.dupBtn, styles.mergeBtn, linkId === firstMatch.matchedContactId && styles.mergeBtnActive]}
+                  style={[
+                    styles.dupBtn,
+                    styles.mergeBtn,
+                    linkId === firstMatch.matchedContactId &&
+                      styles.mergeBtnActive,
+                  ]}
                   onPress={() => setLinkId(firstMatch.matchedContactId)}
                 >
-                  <Text style={[styles.dupBtnText, styles.mergeText, linkId === firstMatch.matchedContactId && styles.mergeTextActive]}>
+                  <Text
+                    style={[
+                      styles.dupBtnText,
+                      styles.mergeText,
+                      linkId === firstMatch.matchedContactId &&
+                        styles.mergeTextActive,
+                    ]}
+                  >
                     Merge
                   </Text>
                 </Pressable>
-                <Pressable style={[styles.dupBtn, styles.ignoreBtn, isDark && { backgroundColor: '#334155', borderColor: '#475569' }]} onPress={() => setShowDuplicateBanner(false)}>
-                  <Text style={[styles.dupBtnText, styles.ignoreText, isDark && { color: '#E2E8F0' }]}>Ignore</Text>
+                <Pressable
+                  style={[
+                    styles.dupBtn,
+                    styles.ignoreBtn,
+                    isDark && {
+                      backgroundColor: '#334155',
+                      borderColor: '#475569',
+                    },
+                  ]}
+                  onPress={() => setShowDuplicateBanner(false)}
+                >
+                  <Text
+                    style={[
+                      styles.dupBtnText,
+                      styles.ignoreText,
+                      isDark && { color: '#E2E8F0' },
+                    ]}
+                  >
+                    Ignore
+                  </Text>
                 </Pressable>
               </View>
             </View>
-            <Pressable onPress={() => setShowDuplicateBanner(false)} style={styles.closeDuplicate}>
+            <Pressable
+              onPress={() => setShowDuplicateBanner(false)}
+              style={styles.closeDuplicate}
+            >
               <Ionicons name="close" size={16} color="#B45309" />
             </Pressable>
           </View>
@@ -245,7 +342,14 @@ export default function OcrReviewScreen() {
         <View style={styles.form}>
           <Text style={[styles.label, { color: colors.muted }]}>FULL NAME</Text>
           <TextInput
-            style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                color: colors.text,
+              },
+            ]}
             value={fullName}
             onChangeText={setFullName}
             placeholder="e.g. Jordan Reeves"
@@ -254,16 +358,32 @@ export default function OcrReviewScreen() {
 
           <Text style={[styles.label, { color: colors.muted }]}>COMPANY</Text>
           <TextInput
-            style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                color: colors.text,
+              },
+            ]}
             value={company}
             onChangeText={setCompany}
             placeholder="e.g. Vector Analytics"
             placeholderTextColor={colors.placeholder}
           />
 
-          <Text style={[styles.label, { color: colors.muted }]}>DESIGNATION</Text>
+          <Text style={[styles.label, { color: colors.muted }]}>
+            DESIGNATION
+          </Text>
           <TextInput
-            style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                color: colors.text,
+              },
+            ]}
             value={title}
             onChangeText={setTitle}
             placeholder="e.g. Senior Account Executive"
@@ -272,7 +392,14 @@ export default function OcrReviewScreen() {
 
           <Text style={[styles.label, { color: colors.muted }]}>PHONE</Text>
           <TextInput
-            style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                color: colors.text,
+              },
+            ]}
             value={phone}
             onChangeText={setPhone}
             keyboardType="phone-pad"
@@ -282,7 +409,14 @@ export default function OcrReviewScreen() {
 
           <Text style={[styles.label, { color: colors.muted }]}>EMAIL</Text>
           <TextInput
-            style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                color: colors.text,
+              },
+            ]}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -301,20 +435,48 @@ export default function OcrReviewScreen() {
               style={[
                 styles.leadChip,
                 { backgroundColor: colors.surface, borderColor: colors.border },
-                lead === l && [styles.leadChipActive, { backgroundColor: colors.accent, borderColor: colors.accent }]
+                lead === l && [
+                  styles.leadChipActive,
+                  {
+                    backgroundColor: colors.accent,
+                    borderColor: colors.accent,
+                  },
+                ],
               ]}
               onPress={() => setLead(l)}
             >
-              <Text style={[styles.leadChipText, { color: colors.muted }, lead === l && styles.leadChipTextActive]}>{l}</Text>
+              <Text
+                style={[
+                  styles.leadChipText,
+                  { color: colors.muted },
+                  lead === l && styles.leadChipTextActive,
+                ]}
+              >
+                {l}
+              </Text>
             </Pressable>
           ))}
         </View>
       </ScrollView>
 
       {/* Bottom Buttons */}
-      <View style={[styles.footer, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: insets.bottom > 0 ? insets.bottom + 8 : 14 }]}>
-        <Pressable style={[styles.retakeBtn, { borderColor: colors.accent }]} onPress={() => router.back()}>
-          <Text style={[styles.retakeBtnText, { color: colors.accent }]}>Retake</Text>
+      <View
+        style={[
+          styles.footer,
+          {
+            backgroundColor: colors.surface,
+            borderTopColor: colors.border,
+            paddingBottom: insets.bottom > 0 ? insets.bottom + 8 : 14,
+          },
+        ]}
+      >
+        <Pressable
+          style={[styles.retakeBtn, { borderColor: colors.accent }]}
+          onPress={() => router.back()}
+        >
+          <Text style={[styles.retakeBtnText, { color: colors.accent }]}>
+            Retake
+          </Text>
         </Pressable>
 
         <Pressable

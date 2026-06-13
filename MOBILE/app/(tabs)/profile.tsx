@@ -1,3 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import React from 'react';
 import {
   ActivityIndicator,
@@ -6,16 +9,14 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { api, clearAuth, getRefreshToken } from '@/lib/api';
 import { logout } from '@/lib/api-client';
-import { registerForPushNotifications } from '@/lib/push-notifications';
 import { COLORS } from '@/lib/constants';
+import { registerForPushNotifications } from '@/lib/push-notifications';
 import { useAuthStore } from '@/stores/auth-store';
+import { useSyncStore } from '@/stores/sync-store';
 import { useThemeStore } from '@/stores/theme-store';
 
 function getInitials(name: string): string {
@@ -30,7 +31,20 @@ function getInitials(name: string): string {
 function formatMemberDate(dateString: string | undefined): string {
   if (!dateString) return 'Jan 2024'; // Fallback
   const d = new Date(dateString);
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
   return `${months[d.getMonth()]} ${d.getFullYear()}`;
 }
 
@@ -38,11 +52,11 @@ export default function ProfileScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const clearSession = useAuthStore((s) => s.clearSession);
-  
+
   const theme = useThemeStore((s) => s.theme);
   const setTheme = useThemeStore((s) => s.setTheme);
   const isDark = theme === 'dark';
-  
+
   const me = useQuery({
     queryKey: ['me'],
     queryFn: () => api.get('/auth/me').then((r) => r.data.data),
@@ -67,48 +81,90 @@ export default function ProfileScreen() {
   };
 
   const profile = me.data ?? user;
+  const pendingCount = useSyncStore(
+    (s) => s.pendingItems.filter((i) => i.status !== 'syncing').length,
+  );
 
   return (
-    <SafeAreaView style={[styles.container, isDark && styles.containerDark]} edges={['top', 'left', 'right']}>
+    <SafeAreaView
+      style={[styles.container, isDark && styles.containerDark]}
+      edges={['top', 'left', 'right']}
+    >
       {me.isLoading && !profile ? (
-        <ActivityIndicator color={COLORS.accent} size="large" style={{ marginTop: 40 }} />
+        <ActivityIndicator
+          color={COLORS.accent}
+          size="large"
+          style={{ marginTop: 40 }}
+        />
       ) : (
         <View style={styles.content}>
           {/* Avatar and Name */}
           <View style={styles.header}>
             <View style={styles.avatarCircle}>
-              <Text style={styles.avatarText}>{getInitials(profile?.fullName ?? profile?.email ?? '')}</Text>
+              <Text style={styles.avatarText}>
+                {getInitials(profile?.fullName ?? profile?.email ?? '')}
+              </Text>
             </View>
-            <Text style={[styles.name, isDark && styles.textDark]}>{profile?.fullName ?? profile?.email ?? 'User'}</Text>
+            <Text style={[styles.name, isDark && styles.textDark]}>
+              {profile?.fullName ?? profile?.email ?? 'User'}
+            </Text>
             <View style={styles.emailRow}>
-              <Ionicons name="mail-outline" size={16} color={isDark ? '#94A3B8' : COLORS.muted} style={{ marginRight: 6 }} />
-              <Text style={[styles.email, isDark && styles.mutedTextDark]}>{profile?.email}</Text>
+              <Ionicons
+                name="mail-outline"
+                size={16}
+                color={isDark ? '#94A3B8' : COLORS.muted}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={[styles.email, isDark && styles.mutedTextDark]}>
+                {profile?.email}
+              </Text>
             </View>
-            
+
             {/* Sales Badge */}
             <View style={[styles.badge, isDark && styles.badgeDark]}>
-              <Ionicons name="shield-outline" size={14} color="#3B82F6" style={{ marginRight: 4 }} />
+              <Ionicons
+                name="shield-outline"
+                size={14}
+                color="#3B82F6"
+                style={{ marginRight: 4 }}
+              />
               <Text style={styles.badgeText}>Sales</Text>
             </View>
           </View>
 
           {/* Details Section */}
-          <Text style={[styles.sectionTitle, isDark && styles.textMutedDark]}>Account Details</Text>
+          <Text style={[styles.sectionTitle, isDark && styles.textMutedDark]}>
+            Account Details
+          </Text>
           <View style={[styles.card, isDark && styles.cardDark]}>
             <View style={styles.detailRow}>
-              <Text style={[styles.detailLabel, isDark && styles.mutedTextDark]}>Member since</Text>
+              <Text
+                style={[styles.detailLabel, isDark && styles.mutedTextDark]}
+              >
+                Member since
+              </Text>
               <Text style={[styles.detailValue, isDark && styles.textDark]}>
                 {profile?.createdAt ? formatMemberDate(profile.createdAt) : '—'}
               </Text>
             </View>
             <View style={[styles.divider, isDark && styles.dividerDark]} />
             <View style={styles.detailRow}>
-              <Text style={[styles.detailLabel, isDark && styles.mutedTextDark]}>Cards scanned</Text>
-              <Text style={[styles.detailValue, isDark && styles.textDark]}>{profile?.cardsScanned ?? 0}</Text>
+              <Text
+                style={[styles.detailLabel, isDark && styles.mutedTextDark]}
+              >
+                Cards scanned
+              </Text>
+              <Text style={[styles.detailValue, isDark && styles.textDark]}>
+                {profile?.cardsScanned ?? 0}
+              </Text>
             </View>
             <View style={[styles.divider, isDark && styles.dividerDark]} />
             <View style={styles.detailRow}>
-              <Text style={[styles.detailLabel, isDark && styles.mutedTextDark]}>Region</Text>
+              <Text
+                style={[styles.detailLabel, isDark && styles.mutedTextDark]}
+              >
+                Region
+              </Text>
               <Text style={[styles.detailValue, isDark && styles.textDark]}>
                 {profile?.email?.includes('.local') ? 'North America' : 'EMEA'}
               </Text>
@@ -116,25 +172,60 @@ export default function ProfileScreen() {
           </View>
 
           {/* Settings Section */}
-          <Text style={[styles.sectionTitle, isDark && styles.textMutedDark]}>App Settings</Text>
+          <Text style={[styles.sectionTitle, isDark && styles.textMutedDark]}>
+            App Settings
+          </Text>
           <View style={[styles.card, isDark && styles.cardDark]}>
             <View style={styles.detailRow}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Ionicons name={isDark ? 'moon-outline' : 'sunny-outline'} size={18} color={isDark ? '#94A3B8' : '#64748B'} style={{ marginRight: 8 }} />
-                <Text style={[styles.detailLabel, isDark && styles.mutedTextDark]}>Theme Mode</Text>
+                <Ionicons
+                  name={isDark ? 'moon-outline' : 'sunny-outline'}
+                  size={18}
+                  color={isDark ? '#94A3B8' : '#64748B'}
+                  style={{ marginRight: 8 }}
+                />
+                <Text
+                  style={[styles.detailLabel, isDark && styles.mutedTextDark]}
+                >
+                  Theme Mode
+                </Text>
               </View>
               <View style={[styles.themeRow, isDark && styles.themeRowDark]}>
                 <Pressable
-                  style={[styles.themeOption, theme === 'light' && styles.themeOptionActive]}
+                  style={[
+                    styles.themeOption,
+                    theme === 'light' && styles.themeOptionActive,
+                  ]}
                   onPress={() => setTheme('light')}
                 >
-                  <Text style={[styles.themeOptionText, theme === 'light' && styles.themeOptionTextActive, isDark && { color: '#94A3B8' }, theme === 'light' && { color: '#ffffff' }]}>Light</Text>
+                  <Text
+                    style={[
+                      styles.themeOptionText,
+                      theme === 'light' && styles.themeOptionTextActive,
+                      isDark && { color: '#94A3B8' },
+                      theme === 'light' && { color: '#ffffff' },
+                    ]}
+                  >
+                    Light
+                  </Text>
                 </Pressable>
                 <Pressable
-                  style={[styles.themeOption, theme === 'dark' && styles.themeOptionActive]}
+                  style={[
+                    styles.themeOption,
+                    theme === 'dark' && styles.themeOptionActive,
+                  ]}
                   onPress={() => setTheme('dark')}
                 >
-                  <Text style={[styles.themeOptionText, theme === 'dark' && styles.themeOptionTextActive, isDark && { color: '#94A3B8' }, theme === 'dark' && { color: '#ffffff' }]}>Dark</Text>
+                  <Text
+                    style={[
+                      styles.themeOptionText,
+                      theme === 'dark' && styles.themeOptionTextActive,
+                      isDark && { color: '#94A3B8' },
+                      theme === 'dark' && { color: '#ffffff' },
+                    ]}
+                  >
+                    Dark
+                  </Text>
                 </Pressable>
               </View>
             </View>
@@ -142,14 +233,59 @@ export default function ProfileScreen() {
 
           <Pressable
             style={[styles.notificationsBtn, isDark && styles.cardDark]}
-            onPress={() => router.push('/notifications')}
+            onPress={() => router.push('/sessions/browse')}
           >
-            <Ionicons name="notifications-outline" size={18} color={isDark ? '#94A3B8' : '#64748B'} style={{ marginRight: 8 }} />
-            <Text style={[styles.notificationsText, isDark && styles.textDark]}>Notifications</Text>
+            <Ionicons
+              name="calendar-outline"
+              size={18}
+              color={isDark ? '#94A3B8' : '#64748B'}
+              style={{ marginRight: 8 }}
+            />
+            <Text style={[styles.notificationsText, isDark && styles.textDark]}>
+              Browse sessions
+            </Text>
           </Pressable>
 
-          <Pressable style={[styles.logoutBtn, isDark && styles.logoutBtnDark]} onPress={signOut}>
-            <Ionicons name="log-out-outline" size={18} color="#EF4444" style={{ marginRight: 8 }} />
+          <Pressable
+            style={[styles.notificationsBtn, isDark && styles.cardDark]}
+            onPress={() => router.push('/sync-status')}
+          >
+            <Ionicons
+              name="cloud-upload-outline"
+              size={18}
+              color={isDark ? '#94A3B8' : '#64748B'}
+              style={{ marginRight: 8 }}
+            />
+            <Text style={[styles.notificationsText, isDark && styles.textDark]}>
+              Sync status{pendingCount > 0 ? ` (${pendingCount})` : ''}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.notificationsBtn, isDark && styles.cardDark]}
+            onPress={() => router.push('/notifications')}
+          >
+            <Ionicons
+              name="notifications-outline"
+              size={18}
+              color={isDark ? '#94A3B8' : '#64748B'}
+              style={{ marginRight: 8 }}
+            />
+            <Text style={[styles.notificationsText, isDark && styles.textDark]}>
+              Notifications
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.logoutBtn, isDark && styles.logoutBtnDark]}
+            onPress={signOut}
+          >
+            <Ionicons
+              name="log-out-outline"
+              size={18}
+              color="#EF4444"
+              style={{ marginRight: 8 }}
+            />
             <Text style={styles.logoutText}>Log out</Text>
           </Pressable>
         </View>

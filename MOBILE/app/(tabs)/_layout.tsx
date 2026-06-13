@@ -1,12 +1,27 @@
-import { useThemeColors } from '@/hooks/useThemeColors';
-import { Tabs } from 'expo-router';
-import { Text, View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Tabs } from 'expo-router';
+import { Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-function TabLabel({ title, focused, colors }: { title: string; focused: boolean; colors: any }) {
+import { useThemeColors } from '@/hooks/useThemeColors';
+
+function TabLabel({
+  title,
+  focused,
+  colors,
+}: {
+  title: string;
+  focused: boolean;
+  colors: any;
+}) {
   return (
-    <Text style={[styles.label, { color: colors.muted }, focused && { fontWeight: '600', color: colors.accent }]}>
+    <Text
+      style={[
+        styles.label,
+        { color: colors.muted },
+        focused && { fontWeight: '600', color: colors.accent },
+      ]}
+    >
       {title}
     </Text>
   );
@@ -40,9 +55,15 @@ export default function TabsLayout() {
         name="home"
         options={{
           title: 'Home',
-          tabBarLabel: ({ focused }) => <TabLabel title="Home" focused={focused} colors={colors} />,
+          tabBarLabel: ({ focused }) => (
+            <TabLabel title="Home" focused={focused} colors={colors} />
+          ),
           tabBarIcon: ({ focused, color, size }) => (
-            <Ionicons name={focused ? 'home' : 'home-outline'} size={size - 2} color={color} />
+            <Ionicons
+              name={focused ? 'home' : 'home-outline'}
+              size={size - 2}
+              color={color}
+            />
           ),
         }}
       />
@@ -50,9 +71,15 @@ export default function TabsLayout() {
         name="contacts"
         options={{
           title: 'Contacts',
-          tabBarLabel: ({ focused }) => <TabLabel title="Contacts" focused={focused} colors={colors} />,
+          tabBarLabel: ({ focused }) => (
+            <TabLabel title="Contacts" focused={focused} colors={colors} />
+          ),
           tabBarIcon: ({ focused, color, size }) => (
-            <Ionicons name={focused ? 'people' : 'people-outline'} size={size - 2} color={color} />
+            <Ionicons
+              name={focused ? 'people' : 'people-outline'}
+              size={size - 2}
+              color={color}
+            />
           ),
         }}
       />
@@ -60,9 +87,15 @@ export default function TabsLayout() {
         name="export"
         options={{
           title: 'Export',
-          tabBarLabel: ({ focused }) => <TabLabel title="Export" focused={focused} colors={colors} />,
+          tabBarLabel: ({ focused }) => (
+            <TabLabel title="Export" focused={focused} colors={colors} />
+          ),
           tabBarIcon: ({ focused, color, size }) => (
-            <Ionicons name={focused ? 'download' : 'download-outline'} size={size - 2} color={color} />
+            <Ionicons
+              name={focused ? 'download' : 'download-outline'}
+              size={size - 2}
+              color={color}
+            />
           ),
         }}
       />
@@ -70,9 +103,15 @@ export default function TabsLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarLabel: ({ focused }) => <TabLabel title="Profile" focused={focused} colors={colors} />,
+          tabBarLabel: ({ focused }) => (
+            <TabLabel title="Profile" focused={focused} colors={colors} />
+          ),
           tabBarIcon: ({ focused, color, size }) => (
-            <Ionicons name={focused ? 'person' : 'person-outline'} size={size - 2} color={color} />
+            <Ionicons
+              name={focused ? 'person' : 'person-outline'}
+              size={size - 2}
+              color={color}
+            />
           ),
         }}
       />

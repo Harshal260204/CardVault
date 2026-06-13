@@ -1,8 +1,4 @@
-import { api, getApiBaseUrl, persistAuth } from '@/lib/api';
-import { getApiErrorMessage, login } from '@/lib/api-client';
-import { isMobileAppRole } from '@/lib/roles';
-import { COLORS } from '@/lib/constants';
-import { useAuthStore } from '@/stores/auth-store';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -16,8 +12,15 @@ import {
   View,
 } from 'react-native';
 
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { api, getApiBaseUrl, persistAuth } from '@/lib/api';
+import { getApiErrorMessage, login } from '@/lib/api-client';
+import { isMobileAppRole } from '@/lib/roles';
+import { useAuthStore } from '@/stores/auth-store';
+
 export default function LoginScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
   const setSession = useAuthStore((s) => s.setSession);
   const [email, setEmail] = useState('employee@cardvault.local');
   const [password, setPassword] = useState('Password123!');
@@ -45,62 +48,107 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.root}
+      style={[styles.root, { backgroundColor: colors.primary }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.card}>
-        <Text style={styles.title}>CardVault</Text>
-        <Text style={styles.subtitle}>Field sales — sign in</Text>
+      <View
+        style={[
+          styles.card,
+          { backgroundColor: colors.surface, borderColor: colors.cardBorder },
+        ]}
+      >
+        <View style={styles.logoRow}>
+          <Ionicons name="card-outline" size={28} color={colors.accent} />
+          <Text style={[styles.title, { color: colors.text }]}>CardVault</Text>
+        </View>
+        <Text style={[styles.subtitle, { color: colors.muted }]}>
+          Field sales — sign in
+        </Text>
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        <Text style={styles.label}>Email</Text>
+        <Text style={[styles.label, { color: colors.text }]}>Email</Text>
         <TextInput
-          style={styles.input}
+          style={[
+            styles.input,
+            {
+              backgroundColor: colors.inputBg,
+              borderColor: colors.border,
+              color: colors.text,
+            },
+          ]}
           autoCapitalize="none"
           keyboardType="email-address"
+          placeholderTextColor={colors.placeholder}
           value={email}
           onChangeText={setEmail}
         />
-        <Text style={styles.label}>Password</Text>
+        <Text style={[styles.label, { color: colors.text }]}>Password</Text>
         <TextInput
-          style={styles.input}
+          style={[
+            styles.input,
+            {
+              backgroundColor: colors.inputBg,
+              borderColor: colors.border,
+              color: colors.text,
+            },
+          ]}
           secureTextEntry
+          placeholderTextColor={colors.placeholder}
           value={password}
           onChangeText={setPassword}
         />
         <Pressable style={styles.button} onPress={onSubmit} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Sign in</Text>}
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Sign in</Text>
+          )}
         </Pressable>
-        <Text style={styles.hint}>Demo: employee@cardvault.local / Password123!</Text>
-        <Text style={styles.apiHint}>API: {getApiBaseUrl()}</Text>
+        <Text style={[styles.hint, { color: colors.muted }]}>
+          Demo: employee@cardvault.local / Password123!
+        </Text>
+        <Text style={[styles.apiHint, { color: colors.muted }]}>
+          API: {getApiBaseUrl()}
+        </Text>
       </View>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.primary, justifyContent: 'center', padding: 24 },
-  card: { backgroundColor: '#fff', borderRadius: 16, padding: 24 },
-  title: { fontSize: 28, fontWeight: '700', color: COLORS.primary, textAlign: 'center' },
-  subtitle: { fontSize: 14, color: COLORS.muted, textAlign: 'center', marginTop: 4, marginBottom: 20 },
-  label: { fontSize: 13, fontWeight: '600', color: COLORS.text, marginBottom: 6 },
+  root: { flex: 1, justifyContent: 'center', padding: 24 },
+  card: { borderRadius: 20, padding: 24, borderWidth: 1 },
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  title: { fontSize: 28, fontWeight: '800', textAlign: 'center' },
+  subtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 20,
+  },
+  label: { fontSize: 13, fontWeight: '600', marginBottom: 6 },
   input: {
     borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     marginBottom: 14,
     fontSize: 16,
   },
   button: {
-    backgroundColor: COLORS.accent,
-    borderRadius: 10,
+    backgroundColor: '#1E2D4A',
+    borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 4,
   },
   buttonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
-  error: { color: COLORS.error, marginBottom: 12, textAlign: 'center' },
-  hint: { marginTop: 16, fontSize: 11, color: COLORS.muted, textAlign: 'center' },
-  apiHint: { marginTop: 8, fontSize: 10, color: COLORS.muted, textAlign: 'center' },
+  error: { color: '#DC2626', marginBottom: 12, textAlign: 'center' },
+  hint: { marginTop: 16, fontSize: 11, textAlign: 'center' },
+  apiHint: { marginTop: 8, fontSize: 10, textAlign: 'center' },
 });

@@ -1,24 +1,32 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { Platform } from 'react-native';
+
+import type { ImageUpload } from '@/lib/api-client';
 import { buildApiUrl } from '@/lib/api-config';
 import { getAccessToken } from '@/lib/api-config';
 import { captureLog } from '@/lib/capture-logger';
 import type { ApiResponse, CaptureMode, OcrJobRecord } from '@/lib/types';
 import { ensureUuid } from '@/lib/uuid';
-import type { ImageUpload } from '@/lib/api-client';
 
 function correlationId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
 /** Android content:// URIs must be copied before multipart upload. */
-export async function resolveUploadUri(uri: string, fileName: string): Promise<string> {
+export async function resolveUploadUri(
+  uri: string,
+  fileName: string,
+): Promise<string> {
   if (Platform.OS === 'android' && !uri.startsWith('file://')) {
     const dest = `${FileSystem.cacheDirectory ?? ''}${fileName}`;
     await FileSystem.copyAsync({ from: uri, to: dest });
     return dest.startsWith('file://') ? dest : `file://${dest}`;
   }
-  if (Platform.OS === 'android' && uri.startsWith('/') && !uri.startsWith('file://')) {
+  if (
+    Platform.OS === 'android' &&
+    uri.startsWith('/') &&
+    !uri.startsWith('file://')
+  ) {
     return `file://${uri}`;
   }
   return uri;
@@ -26,7 +34,10 @@ export async function resolveUploadUri(uri: string, fileName: string): Promise<s
 
 function parseUploadError(status: number, body: string): Error {
   try {
-    const json = JSON.parse(body) as { error?: { message?: string | string[] }; message?: string };
+    const json = JSON.parse(body) as {
+      error?: { message?: string | string[] };
+      message?: string;
+    };
     const raw = json.error?.message ?? json.message;
     const message = Array.isArray(raw) ? raw.join('; ') : raw;
     if (message) {
@@ -117,7 +128,11 @@ async function submitOcrJobFileSystem(
  */
 export async function submitOcrJobNative(
   file: ImageUpload,
-  payload: { captureMode: CaptureMode; sessionId?: string; clientIdempotencyKey: string },
+  payload: {
+    captureMode: CaptureMode;
+    sessionId?: string;
+    clientIdempotencyKey: string;
+  },
 ): Promise<OcrJobRecord> {
   const clientIdempotencyKey = ensureUuid(payload.clientIdempotencyKey);
   const token = getAccessToken();
@@ -149,7 +164,14 @@ export async function submitOcrJobNative(
   try {
     const job =
       Platform.OS === 'android'
-        ? await submitOcrJobFetch(url, uploadUri, file, fileName, parameters, token)
+        ? await submitOcrJobFetch(
+            url,
+            uploadUri,
+            file,
+            fileName,
+            parameters,
+            token,
+          )
         : await submitOcrJobFileSystem(url, uploadUri, file, parameters, token);
 
     captureLog.uploadSuccess(job.id, job.status);

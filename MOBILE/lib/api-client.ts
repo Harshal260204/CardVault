@@ -1,9 +1,15 @@
-import axios, { type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
+import axios, {
+  type AxiosError,
+  type AxiosInstance,
+  type InternalAxiosRequestConfig,
+} from 'axios';
+
 import { captureLog } from '@/lib/capture-logger';
 import { API_BASE_PATH } from '@/lib/constants';
 import { submitOcrJobNative } from '@/lib/submit-ocr-upload';
 import type {
   ApiResponse,
+  ContactEncounterRecord,
   ContactRecord,
   EventSessionRecord,
   LoginResponse,
@@ -52,7 +58,9 @@ export function createApiClient(config: ApiClientConfig): AxiosInstance {
   client.interceptors.response.use(
     (res) => res,
     async (error: AxiosError) => {
-      const original = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+      const original = error.config as InternalAxiosRequestConfig & {
+        _retry?: boolean;
+      };
       const isRefreshRequest = original?.url?.includes('/auth/refresh');
 
       if (error.response?.status === 401 && isRefreshRequest) {
@@ -68,7 +76,7 @@ export function createApiClient(config: ApiClientConfig): AxiosInstance {
             .post<ApiResponse<{ accessToken: string; refreshToken: string }>>(
               `${config.baseURL.replace(/\/$/, '')}${API_BASE_PATH}/auth/refresh`,
               {
-              refreshToken: refresh,
+                refreshToken: refresh,
               },
               {
                 timeout: 30_000,
@@ -82,7 +90,10 @@ export function createApiClient(config: ApiClientConfig): AxiosInstance {
             .then((r) => {
               const tokens = r.data.data;
               return Promise.resolve(
-                config.onTokensRefreshed?.(tokens.accessToken, tokens.refreshToken),
+                config.onTokensRefreshed?.(
+                  tokens.accessToken,
+                  tokens.refreshToken,
+                ),
               ).then(() => tokens.accessToken);
             })
             .catch(async () => {
@@ -114,7 +125,10 @@ export async function login(
   email: string,
   password: string,
 ): Promise<LoginResponse> {
-  const { data } = await client.post<ApiResponse<LoginResponse>>('/auth/login', { email, password });
+  const { data } = await client.post<ApiResponse<LoginResponse>>(
+    '/auth/login',
+    { email, password },
+  );
   return data.data;
 }
 
@@ -122,7 +136,9 @@ export async function logout(
   client: AxiosInstance,
   refreshToken?: string | null,
 ): Promise<void> {
-  await client.post('/auth/logout', { refreshToken: refreshToken ?? undefined });
+  await client.post('/auth/logout', {
+    refreshToken: refreshToken ?? undefined,
+  });
 }
 
 export async function fetchMe(client: AxiosInstance): Promise<UserProfile> {
@@ -157,8 +173,23 @@ export async function fetchContacts(
   };
 }
 
-export async function fetchContact(client: AxiosInstance, id: string): Promise<ContactRecord> {
-  const { data } = await client.get<ApiResponse<ContactRecord>>(`/contacts/${id}`);
+export async function fetchContact(
+  client: AxiosInstance,
+  id: string,
+): Promise<ContactRecord> {
+  const { data } = await client.get<ApiResponse<ContactRecord>>(
+    `/contacts/${id}`,
+  );
+  return data.data;
+}
+
+export async function fetchContactEncounters(
+  client: AxiosInstance,
+  contactId: string,
+): Promise<ContactEncounterRecord[]> {
+  const { data } = await client.get<ApiResponse<ContactEncounterRecord[]>>(
+    `/contacts/${contactId}/encounters`,
+  );
   return data.data;
 }
 
@@ -175,9 +206,12 @@ export async function fetchSessions(
     ...params,
     limit: params?.limit ? Math.min(params.limit, 100) : params?.limit,
   };
-  const { data } = await client.get<ApiResponse<EventSessionRecord[]>>('/sessions', {
-    params: normalizedParams,
-  });
+  const { data } = await client.get<ApiResponse<EventSessionRecord[]>>(
+    '/sessions',
+    {
+      params: normalizedParams,
+    },
+  );
   return {
     items: data.data,
     meta: {
@@ -188,8 +222,13 @@ export async function fetchSessions(
   };
 }
 
-export async function fetchSession(client: AxiosInstance, id: string): Promise<EventSessionRecord> {
-  const { data } = await client.get<ApiResponse<EventSessionRecord>>(`/sessions/${id}`);
+export async function fetchSession(
+  client: AxiosInstance,
+  id: string,
+): Promise<EventSessionRecord> {
+  const { data } = await client.get<ApiResponse<EventSessionRecord>>(
+    `/sessions/${id}`,
+  );
   return data.data;
 }
 
@@ -204,7 +243,10 @@ export async function createSession(
     endDate?: string;
   },
 ): Promise<EventSessionRecord> {
-  const { data } = await client.post<ApiResponse<EventSessionRecord>>('/sessions', payload);
+  const { data } = await client.post<ApiResponse<EventSessionRecord>>(
+    '/sessions',
+    payload,
+  );
   return data.data;
 }
 
@@ -219,22 +261,40 @@ export async function updateSession(
     endDate?: string;
   },
 ): Promise<EventSessionRecord> {
-  const { data } = await client.patch<ApiResponse<EventSessionRecord>>(`/sessions/${id}`, payload);
+  const { data } = await client.patch<ApiResponse<EventSessionRecord>>(
+    `/sessions/${id}`,
+    payload,
+  );
   return data.data;
 }
 
-export async function closeSession(client: AxiosInstance, id: string): Promise<EventSessionRecord> {
-  const { data } = await client.post<ApiResponse<EventSessionRecord>>(`/sessions/${id}/close`);
+export async function closeSession(
+  client: AxiosInstance,
+  id: string,
+): Promise<EventSessionRecord> {
+  const { data } = await client.post<ApiResponse<EventSessionRecord>>(
+    `/sessions/${id}/close`,
+  );
   return data.data;
 }
 
-export async function deleteSession(client: AxiosInstance, id: string): Promise<{ id: string; deleted: true }> {
-  const { data } = await client.delete<ApiResponse<{ id: string; deleted: true }>>(`/sessions/${id}`);
+export async function deleteSession(
+  client: AxiosInstance,
+  id: string,
+): Promise<{ id: string; deleted: true }> {
+  const { data } = await client.delete<
+    ApiResponse<{ id: string; deleted: true }>
+  >(`/sessions/${id}`);
   return data.data;
 }
 
-export async function joinSession(client: AxiosInstance, id: string): Promise<{ joined: boolean }> {
-  const { data } = await client.post<ApiResponse<{ joined: boolean }>>(`/sessions/${id}/join`);
+export async function joinSession(
+  client: AxiosInstance,
+  id: string,
+): Promise<{ joined: boolean }> {
+  const { data } = await client.post<ApiResponse<{ joined: boolean }>>(
+    `/sessions/${id}/join`,
+  );
   return data.data;
 }
 
@@ -242,7 +302,9 @@ export async function fetchSessionStats(
   client: AxiosInstance,
   id: string,
 ): Promise<SessionStatsRecord> {
-  const { data } = await client.get<ApiResponse<SessionStatsRecord>>(`/sessions/${id}/stats`);
+  const { data } = await client.get<ApiResponse<SessionStatsRecord>>(
+    `/sessions/${id}/stats`,
+  );
   return data.data;
 }
 
@@ -250,7 +312,9 @@ export async function fetchSessionMembers(
   client: AxiosInstance,
   id: string,
 ): Promise<SessionMemberRecord[]> {
-  const { data } = await client.get<ApiResponse<SessionMemberRecord[]>>(`/sessions/${id}/members`);
+  const { data } = await client.get<ApiResponse<SessionMemberRecord[]>>(
+    `/sessions/${id}/members`,
+  );
   return data.data;
 }
 
@@ -258,9 +322,9 @@ export async function fetchImageUrl(
   client: AxiosInstance,
   imageId: string,
 ): Promise<{ url: string; expiresIn: number }> {
-  const { data } = await client.get<ApiResponse<{ url: string; expiresIn: number }>>(
-    `/images/${imageId}/url`,
-  );
+  const { data } = await client.get<
+    ApiResponse<{ url: string; expiresIn: number }>
+  >(`/images/${imageId}/url`);
   return data.data;
 }
 
@@ -273,12 +337,20 @@ export async function createExportJob(
     captureMode?: string;
   },
 ): Promise<ExportJobRecord> {
-  const { data } = await client.post<ApiResponse<ExportJobRecord>>('/exports', payload);
+  const { data } = await client.post<ApiResponse<ExportJobRecord>>(
+    '/exports',
+    payload,
+  );
   return data.data;
 }
 
-export async function fetchExportJob(client: AxiosInstance, id: string): Promise<ExportJobRecord> {
-  const { data } = await client.get<ApiResponse<ExportJobRecord>>(`/exports/${id}`);
+export async function fetchExportJob(
+  client: AxiosInstance,
+  id: string,
+): Promise<ExportJobRecord> {
+  const { data } = await client.get<ApiResponse<ExportJobRecord>>(
+    `/exports/${id}`,
+  );
   return data.data;
 }
 
@@ -297,9 +369,12 @@ export async function fetchNotifications(
   client: AxiosInstance,
   params?: { page?: number; limit?: number; unreadOnly?: boolean },
 ): Promise<PaginatedList<NotificationRecord>> {
-  const { data } = await client.get<ApiResponse<NotificationRecord[]>>('/notifications', {
-    params,
-  });
+  const { data } = await client.get<ApiResponse<NotificationRecord[]>>(
+    '/notifications',
+    {
+      params,
+    },
+  );
   return {
     items: data.data,
     meta: {
@@ -313,7 +388,9 @@ export async function fetchNotifications(
 export async function fetchUnreadNotificationCount(
   client: AxiosInstance,
 ): Promise<number> {
-  const { data } = await client.get<ApiResponse<{ count: number }>>('/notifications/unread-count');
+  const { data } = await client.get<ApiResponse<{ count: number }>>(
+    '/notifications/unread-count',
+  );
   return data.data.count;
 }
 
@@ -349,7 +426,10 @@ export async function createContact(
     leadQualifier?: 'hot' | 'warm' | 'cold';
   },
 ): Promise<ContactRecord> {
-  const { data } = await client.post<ApiResponse<ContactRecord>>('/contacts', payload);
+  const { data } = await client.post<ApiResponse<ContactRecord>>(
+    '/contacts',
+    payload,
+  );
   return data.data;
 }
 
@@ -372,12 +452,20 @@ export async function updateContact(
     leadQualifier?: 'hot' | 'warm' | 'cold';
   },
 ): Promise<ContactRecord> {
-  const { data } = await client.patch<ApiResponse<ContactRecord>>(`/contacts/${id}`, payload);
+  const { data } = await client.patch<ApiResponse<ContactRecord>>(
+    `/contacts/${id}`,
+    payload,
+  );
   return data.data;
 }
 
-export async function deleteContact(client: AxiosInstance, id: string): Promise<{ id: string; deleted: true }> {
-  const { data } = await client.delete<ApiResponse<{ id: string; deleted: true }>>(`/contacts/${id}`);
+export async function deleteContact(
+  client: AxiosInstance,
+  id: string,
+): Promise<{ id: string; deleted: true }> {
+  const { data } = await client.delete<
+    ApiResponse<{ id: string; deleted: true }>
+  >(`/contacts/${id}`);
   return data.data;
 }
 
@@ -386,15 +474,24 @@ export type ImageUpload = { uri: string; name: string; type: string };
 export async function submitOcrJob(
   _client: AxiosInstance,
   file: ImageUpload,
-  payload: { captureMode: CaptureMode; sessionId?: string; clientIdempotencyKey: string },
+  payload: {
+    captureMode: CaptureMode;
+    sessionId?: string;
+    clientIdempotencyKey: string;
+  },
 ): Promise<OcrJobRecord> {
   return submitOcrJobNative(file, payload);
 }
 
-export async function fetchOcrJob(client: AxiosInstance, id: string): Promise<OcrJobRecord> {
+export async function fetchOcrJob(
+  client: AxiosInstance,
+  id: string,
+): Promise<OcrJobRecord> {
   captureLog.jobFetchStarted(id);
   try {
-    const { data } = await client.get<ApiResponse<OcrJobRecord>>(`/ocr/jobs/${id}`);
+    const { data } = await client.get<ApiResponse<OcrJobRecord>>(
+      `/ocr/jobs/${id}`,
+    );
     const job = data.data;
     if (__DEV__) {
       console.log('OCR JOB RESPONSE', JSON.stringify(job, null, 2));
@@ -450,10 +547,9 @@ export async function confirmOcrJob(
   });
 
   try {
-    const { data } = await client.post<ApiResponse<{ job: OcrJobRecord; contact: ContactRecord }>>(
-      `/ocr/jobs/${id}/confirm`,
-      payload,
-    );
+    const { data } = await client.post<
+      ApiResponse<{ job: OcrJobRecord; contact: ContactRecord }>
+    >(`/ocr/jobs/${id}/confirm`, payload);
     captureLog.confirmSuccess(id, data.data.contact.id);
     return data.data;
   } catch (error) {
@@ -466,7 +562,11 @@ export function getApiErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
     if (!error.response) {
       if (__DEV__ && error.code) {
-        console.warn('[CardCapture] network error code:', error.code, error.message);
+        console.warn(
+          '[CardCapture] network error code:',
+          error.code,
+          error.message,
+        );
       }
       const base = error.config?.baseURL ?? '';
       const path = error.config?.url ?? '';

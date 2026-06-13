@@ -1,3 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -6,33 +9,26 @@ import {
   StyleSheet,
   Text,
   View,
-  Dimensions,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
-import { Link, useLocalSearchParams, useRouter } from 'expo-router';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 
-import { api } from '@/lib/api';
-import { fetchContacts, fetchSessions, getApiErrorMessage } from '@/lib/api-client';
-import { COLORS } from '@/lib/constants';
-import { useAuthStore } from '@/stores/auth-store';
-import { useSessionStore } from '@/stores/session-store';
-import type { EventSessionRecord } from '@/lib/types';
 import CameraScannerModal from '@/components/CameraScannerModal';
 import SessionMemberAvatars from '@/components/SessionMemberAvatars';
 import { useThemeColors } from '@/hooks/useThemeColors';
-
-const { width } = Dimensions.get('window');
-
-function getInitials(name: string): string {
-  if (!name) return '??';
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  }
-  return parts[0].slice(0, 2).toUpperCase();
-}
+import { api } from '@/lib/api';
+import {
+  fetchContacts,
+  fetchSessions,
+  getApiErrorMessage,
+} from '@/lib/api-client';
+import { COLORS } from '@/lib/constants';
+import type { EventSessionRecord } from '@/lib/types';
+import { useAuthStore } from '@/stores/auth-store';
+import { useSessionStore } from '@/stores/session-store';
+import { useSyncStore } from '@/stores/sync-store';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -48,9 +44,11 @@ export default function HomeScreen() {
   });
 
   const profile = me.data ?? user;
-  const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
-  
+  const pendingCount = useSyncStore(
+    (s) => s.pendingItems.filter((i) => i.status !== 'syncing').length,
+  );
+
   const [scannerVisible, setScannerVisible] = useState(false);
 
   React.useEffect(() => {
@@ -67,7 +65,8 @@ export default function HomeScreen() {
   });
   const sessions = useQuery({
     queryKey: ['sessions', 'mine', 'active'],
-    queryFn: () => fetchSessions(api, { limit: 10, status: 'active', mine: true }),
+    queryFn: () =>
+      fetchSessions(api, { limit: 10, status: 'active', mine: true }),
   });
 
   const getGreeting = () => {
@@ -78,9 +77,15 @@ export default function HomeScreen() {
   };
 
   const totalScans = profile?.cardsScanned ?? contacts.data?.meta?.total ?? 0;
-  const returningScans = contacts.data?.items.filter((c) => (c.emails?.length ?? 0) > 1 || c.isMerged).length ?? 0;
+  const returningScans =
+    contacts.data?.items.filter(
+      (c) => (c.emails?.length ?? 0) > 1 || c.isMerged,
+    ).length ?? 0;
   const lastSyncedAt = contacts.dataUpdatedAt
-    ? new Date(contacts.dataUpdatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    ? new Date(contacts.dataUpdatedAt).toLocaleTimeString([], {
+        hour: 'numeric',
+        minute: '2-digit',
+      })
     : null;
 
   const activeSessions = sessions.data?.items ?? [];
@@ -92,7 +97,10 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      edges={['top', 'left', 'right']}
+    >
       <ScrollView style={styles.root} contentContainerStyle={styles.content}>
         {/* Header */}
         <View style={styles.header}>
@@ -121,144 +129,368 @@ export default function HomeScreen() {
                 </Text>
               </Text>
             </View>
+            {pendingCount > 0 ? (
+              <Pressable
+                style={styles.syncPill}
+                onPress={() => router.push('/sync-status')}
+              >
+                <Ionicons
+                  name="cloud-upload-outline"
+                  size={12}
+                  color="#D97706"
+                />
+                <Text style={styles.syncPillText}>
+                  {pendingCount} pending sync
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
-          <Pressable style={[styles.searchBtn, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => router.push('/(tabs)/contacts')}>
+          <Pressable
+            style={[
+              styles.searchBtn,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+            onPress={() => router.push('/(tabs)/contacts')}
+          >
             <Ionicons name="search" size={20} color={colors.text} />
           </Pressable>
         </View>
 
         {/* Capture Mode List */}
-        <Text style={[styles.sectionTitle, { color: colors.muted }]}>Capture Mode</Text>
+        <Text style={[styles.sectionTitle, { color: colors.muted }]}>
+          Capture Mode
+        </Text>
 
-        <Pressable 
-          style={[styles.modeListItem, { backgroundColor: colors.surface, borderColor: colors.border }]}
-          onPress={() => router.push({ pathname: '/events/create', params: { initialMode: 'visitor' } })}
+        <Pressable
+          style={[
+            styles.modeListItem,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+          onPress={() =>
+            router.push({
+              pathname: '/events/create',
+              params: { initialMode: 'visitor' },
+            })
+          }
         >
-          <View style={[styles.modeIconBg, { backgroundColor: isDark ? '#0F172A' : '#F1F5F9' }]}>
-            <Ionicons name="business-outline" size={20} color={isDark ? '#94A3B8' : '#475569'} />
+          <View
+            style={[
+              styles.modeIconBg,
+              { backgroundColor: isDark ? '#0F172A' : '#F1F5F9' },
+            ]}
+          >
+            <Ionicons
+              name="business-outline"
+              size={20}
+              color={isDark ? '#94A3B8' : '#475569'}
+            />
           </View>
           <View style={styles.modeItemContent}>
             <View style={styles.modeItemHeader}>
-              <Text style={[styles.modeItemName, { color: colors.text }]}>Visitor Mode</Text>
-              <View style={[styles.modeItemBadge, isDark && { backgroundColor: '#334155' }]}>
-                <Text style={[styles.modeItemBadgeText, { color: colors.muted }]}>Event-linked</Text>
+              <Text style={[styles.modeItemName, { color: colors.text }]}>
+                Visitor Mode
+              </Text>
+              <View
+                style={[
+                  styles.modeItemBadge,
+                  isDark && { backgroundColor: '#334155' },
+                ]}
+              >
+                <Text
+                  style={[styles.modeItemBadgeText, { color: colors.muted }]}
+                >
+                  Event-linked
+                </Text>
               </View>
             </View>
-            <Text style={[styles.modeItemDesc, { color: colors.muted }]}>Structured capture tied to an event agenda and booths.</Text>
+            <Text style={[styles.modeItemDesc, { color: colors.muted }]}>
+              Structured capture tied to an event agenda and booths.
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.muted} />
         </Pressable>
 
-        <Pressable 
-          style={[styles.modeListItem, { backgroundColor: colors.surface, borderColor: colors.border }]}
-          onPress={() => router.push({ pathname: '/events/create', params: { initialMode: 'exhibitor' } })}
+        <Pressable
+          style={[
+            styles.modeListItem,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+          onPress={() =>
+            router.push({
+              pathname: '/events/create',
+              params: { initialMode: 'exhibitor' },
+            })
+          }
         >
-          <View style={[styles.modeIconBg, { backgroundColor: isDark ? '#1E3A8A' : '#EFF6FF' }]}>
-            <Ionicons name="briefcase-outline" size={20} color={isDark ? '#60A5FA' : '#2563EB'} />
+          <View
+            style={[
+              styles.modeIconBg,
+              { backgroundColor: isDark ? '#1E3A8A' : '#EFF6FF' },
+            ]}
+          >
+            <Ionicons
+              name="briefcase-outline"
+              size={20}
+              color={isDark ? '#60A5FA' : '#2563EB'}
+            />
           </View>
           <View style={styles.modeItemContent}>
             <View style={styles.modeItemHeader}>
-              <Text style={[styles.modeItemName, { color: colors.text }]}>Exhibitor Mode</Text>
-              <View style={[styles.modeItemBadge, { backgroundColor: isDark ? '#064E3B' : '#ECFDF5' }]}>
-                <Text style={[styles.modeItemBadgeText, { color: isDark ? '#34D399' : '#047857' }]}>Live stats</Text>
+              <Text style={[styles.modeItemName, { color: colors.text }]}>
+                Exhibitor Mode
+              </Text>
+              <View
+                style={[
+                  styles.modeItemBadge,
+                  { backgroundColor: isDark ? '#064E3B' : '#ECFDF5' },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.modeItemBadgeText,
+                    { color: isDark ? '#34D399' : '#047857' },
+                  ]}
+                >
+                  Live stats
+                </Text>
               </View>
             </View>
-            <Text style={[styles.modeItemDesc, { color: colors.muted }]}>Fast capture with lead qualification and team live view.</Text>
+            <Text style={[styles.modeItemDesc, { color: colors.muted }]}>
+              Fast capture with lead qualification and team live view.
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.muted} />
         </Pressable>
 
-        <Pressable 
-          style={[styles.modeListItem, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        <Pressable
+          style={[
+            styles.modeListItem,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
           onPress={() => router.push('/encounter-select')}
         >
-          <View style={[styles.modeIconBg, { backgroundColor: isDark ? '#065F46' : '#F0FDF4' }]}>
-            <Ionicons name="flash-outline" size={20} color={isDark ? '#34D399' : '#16A34A'} />
+          <View
+            style={[
+              styles.modeIconBg,
+              { backgroundColor: isDark ? '#065F46' : '#F0FDF4' },
+            ]}
+          >
+            <Ionicons
+              name="flash-outline"
+              size={20}
+              color={isDark ? '#34D399' : '#16A34A'}
+            />
           </View>
           <View style={styles.modeItemContent}>
             <View style={styles.modeItemHeader}>
-              <Text style={[styles.modeItemName, { color: colors.text }]}>Quick Capture</Text>
-              <View style={[styles.modeItemBadge, isDark && { backgroundColor: '#334155' }]}>
-                <Text style={[styles.modeItemBadgeText, { color: colors.muted }]}>No event link</Text>
+              <Text style={[styles.modeItemName, { color: colors.text }]}>
+                Quick Capture
+              </Text>
+              <View
+                style={[
+                  styles.modeItemBadge,
+                  isDark && { backgroundColor: '#334155' },
+                ]}
+              >
+                <Text
+                  style={[styles.modeItemBadgeText, { color: colors.muted }]}
+                >
+                  No event link
+                </Text>
               </View>
             </View>
-            <Text style={[styles.modeItemDesc, { color: colors.muted }]}>Direct scan to your contact list.</Text>
+            <Text style={[styles.modeItemDesc, { color: colors.muted }]}>
+              Direct scan to your contact list.
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.muted} />
         </Pressable>
 
         {/* Active Sessions */}
         <View style={styles.sectionHeaderAlt}>
-          <Text style={[styles.sectionTitle, { color: colors.muted }]}>Active Sessions</Text>
-          <Text style={[styles.sectionBadge, { color: colors.muted }]}>{liveCount} live</Text>
+          <Text style={[styles.sectionTitle, { color: colors.muted }]}>
+            Active Sessions
+          </Text>
+          <Text style={[styles.sectionBadge, { color: colors.muted }]}>
+            {liveCount} live
+          </Text>
         </View>
 
         {sessions.isLoading ? (
-          <ActivityIndicator color={COLORS.accent} style={{ marginVertical: 24 }} />
+          <ActivityIndicator
+            color={COLORS.accent}
+            style={{ marginVertical: 24 }}
+          />
         ) : sessions.isError ? (
-          <Text style={styles.errorText}>{getApiErrorMessage(sessions.error)}</Text>
+          <Text style={styles.errorText}>
+            {getApiErrorMessage(sessions.error)}
+          </Text>
         ) : activeSessions.length ? (
           activeSessions.map((s: EventSessionRecord) => {
             const targetScans = s.mode === 'exhibitor' ? 200 : 60;
             const progress = Math.min(s.scanCount / targetScans, 1);
-            
+
             return (
-              <View key={s.id} style={[styles.sessionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View
+                key={s.id}
+                style={[
+                  styles.sessionCard,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
                 {/* Mode and Avatars */}
                 <View style={styles.cardHeader}>
-                  <View style={[styles.modePill, s.mode === 'exhibitor' ? (isDark ? { backgroundColor: '#1E3A8A' } : styles.modeExhibitor) : (isDark ? { backgroundColor: '#334155' } : styles.modeVisitor)]}>
-                    <Ionicons 
-                      name={s.mode === 'exhibitor' ? 'briefcase' : 'people'} 
-                      size={12} 
-                      color={s.mode === 'exhibitor' ? (isDark ? '#60A5FA' : '#0284C7') : (isDark ? '#94A3B8' : '#64748B')} 
+                  <View
+                    style={[
+                      styles.modePill,
+                      s.mode === 'exhibitor'
+                        ? isDark
+                          ? { backgroundColor: '#1E3A8A' }
+                          : styles.modeExhibitor
+                        : isDark
+                          ? { backgroundColor: '#334155' }
+                          : styles.modeVisitor,
+                    ]}
+                  >
+                    <Ionicons
+                      name={s.mode === 'exhibitor' ? 'briefcase' : 'people'}
+                      size={12}
+                      color={
+                        s.mode === 'exhibitor'
+                          ? isDark
+                            ? '#60A5FA'
+                            : '#0284C7'
+                          : isDark
+                            ? '#94A3B8'
+                            : '#64748B'
+                      }
                       style={{ marginRight: 4 }}
                     />
-                    <Text style={[styles.modeText, s.mode === 'exhibitor' ? (isDark ? { color: '#60A5FA' } : styles.modeTextExhibitor) : (isDark ? { color: '#94A3B8' } : styles.modeTextVisitor)]}>
+                    <Text
+                      style={[
+                        styles.modeText,
+                        s.mode === 'exhibitor'
+                          ? isDark
+                            ? { color: '#60A5FA' }
+                            : styles.modeTextExhibitor
+                          : isDark
+                            ? { color: '#94A3B8' }
+                            : styles.modeTextVisitor,
+                      ]}
+                    >
                       {s.mode.toUpperCase()}
                     </Text>
-                    {s.mode === 'exhibitor' && <Text style={styles.liveDot}> • LIVE</Text>}
+                    {s.mode === 'exhibitor' && (
+                      <Text style={styles.liveDot}> • LIVE</Text>
+                    )}
                   </View>
-                  
+
                   <SessionMemberAvatars sessionId={s.id} />
                 </View>
 
                 {/* Session Title */}
-                <Text style={[styles.sessionName, { color: colors.text }]}>{s.name}</Text>
+                <Text style={[styles.sessionName, { color: colors.text }]}>
+                  {s.name}
+                </Text>
 
                 {/* Progress bar */}
                 <View style={styles.progressRow}>
                   <Text style={[styles.progressText, { color: colors.muted }]}>
-                    <Text style={{ fontWeight: '700', color: colors.text }}>{s.scanCount}</Text> / {targetScans} scans
+                    <Text style={{ fontWeight: '700', color: colors.text }}>
+                      {s.scanCount}
+                    </Text>{' '}
+                    / {targetScans} scans
                   </Text>
                   <Text style={[styles.timeText, { color: colors.muted }]}>
                     {s.status === 'active' ? 'active now' : s.status}
                   </Text>
                 </View>
-                <View style={[styles.progressBarBg, { backgroundColor: isDark ? '#0F172A' : '#F1F5F9' }]}>
-                  <View style={[styles.progressBarFill, { width: `${progress * 100}%`, backgroundColor: isDark ? '#3B82F6' : '#1E293B' }]} />
+                <View
+                  style={[
+                    styles.progressBarBg,
+                    { backgroundColor: isDark ? '#0F172A' : '#F1F5F9' },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.progressBarFill,
+                      {
+                        width: `${progress * 100}%`,
+                        backgroundColor: isDark ? '#3B82F6' : '#1E293B',
+                      },
+                    ]}
+                  />
                 </View>
 
                 {/* Lead Breakdown Counts */}
                 <View style={styles.statsRow}>
-                  <View style={[styles.statPill, { backgroundColor: isDark ? '#0F172A' : '#F8FAFC', borderColor: colors.border }]}>
-                    <View style={[styles.statDot, { backgroundColor: '#EF4444' }]} />
-                    <Text style={[styles.statLabel, { color: colors.muted }]}>HOT</Text>
-                    <Text style={[styles.statCount, { color: colors.text }]}>{s.hotCount}</Text>
+                  <View
+                    style={[
+                      styles.statPill,
+                      {
+                        backgroundColor: isDark ? '#0F172A' : '#F8FAFC',
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[styles.statDot, { backgroundColor: '#EF4444' }]}
+                    />
+                    <Text style={[styles.statLabel, { color: colors.muted }]}>
+                      HOT
+                    </Text>
+                    <Text style={[styles.statCount, { color: colors.text }]}>
+                      {s.hotCount}
+                    </Text>
                   </View>
-                  <View style={[styles.statPill, { backgroundColor: isDark ? '#0F172A' : '#F8FAFC', borderColor: colors.border }]}>
-                    <View style={[styles.statDot, { backgroundColor: '#F59E0B' }]} />
-                    <Text style={[styles.statLabel, { color: colors.muted }]}>WARM</Text>
-                    <Text style={[styles.statCount, { color: colors.text }]}>{s.warmCount}</Text>
+                  <View
+                    style={[
+                      styles.statPill,
+                      {
+                        backgroundColor: isDark ? '#0F172A' : '#F8FAFC',
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[styles.statDot, { backgroundColor: '#F59E0B' }]}
+                    />
+                    <Text style={[styles.statLabel, { color: colors.muted }]}>
+                      WARM
+                    </Text>
+                    <Text style={[styles.statCount, { color: colors.text }]}>
+                      {s.warmCount}
+                    </Text>
                   </View>
-                  <View style={[styles.statPill, { backgroundColor: isDark ? '#0F172A' : '#F8FAFC', borderColor: colors.border }]}>
-                    <View style={[styles.statDot, { backgroundColor: '#3B82F6' }]} />
-                    <Text style={[styles.statLabel, { color: colors.muted }]}>COLD</Text>
-                    <Text style={[styles.statCount, { color: colors.text }]}>{s.coldCount}</Text>
+                  <View
+                    style={[
+                      styles.statPill,
+                      {
+                        backgroundColor: isDark ? '#0F172A' : '#F8FAFC',
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[styles.statDot, { backgroundColor: '#3B82F6' }]}
+                    />
+                    <Text style={[styles.statLabel, { color: colors.muted }]}>
+                      COLD
+                    </Text>
+                    <Text style={[styles.statCount, { color: colors.text }]}>
+                      {s.coldCount}
+                    </Text>
                   </View>
                 </View>
 
                 {/* Resume button */}
-                <Pressable style={styles.resumeBtn} onPress={() => handleResumeSession(s)}>
+                <Pressable
+                  style={styles.resumeBtn}
+                  onPress={() => handleResumeSession(s)}
+                >
                   <Text style={styles.resumeText}>Resume Session</Text>
                   <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
                 </Pressable>
@@ -266,15 +498,31 @@ export default function HomeScreen() {
             );
           })
         ) : (
-          <View style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.emptyText, { color: colors.muted }]}>No active events yet. Create one on the WEB dashboard or check back later.</Text>
+          <View
+            style={[
+              styles.emptyCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <Text style={[styles.emptyText, { color: colors.muted }]}>
+              No active events yet. Create one or browse organization sessions.
+            </Text>
+            <Pressable
+              style={styles.browseBtn}
+              onPress={() => router.push('/sessions/browse')}
+            >
+              <Text style={styles.browseBtnText}>Browse sessions</Text>
+            </Pressable>
           </View>
         )}
       </ScrollView>
 
       {/* Floating Action Button (FAB) */}
-      <Pressable 
-        style={[styles.fab, { bottom: 56 + (insets.bottom > 0 ? insets.bottom : 8) + 16 }]} 
+      <Pressable
+        style={[
+          styles.fab,
+          { bottom: 56 + (insets.bottom > 0 ? insets.bottom : 8) + 16 },
+        ]}
         onPress={() => setScannerVisible(true)}
       >
         <Ionicons name="camera" size={24} color="#FFFFFF" />
@@ -525,7 +773,27 @@ const styles = StyleSheet.create({
     color: '#64748B',
     textAlign: 'center',
     lineHeight: 18,
+    marginBottom: 12,
   },
+  browseBtn: {
+    backgroundColor: '#1E2D4A',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  browseBtnText: { color: '#FFFFFF', fontWeight: '600', fontSize: 13 },
+  syncPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  syncPillText: { fontSize: 11, fontWeight: '600', color: '#D97706' },
   modeListItem: {
     flexDirection: 'row',
     alignItems: 'center',

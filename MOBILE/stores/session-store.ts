@@ -1,5 +1,10 @@
 import { create } from 'zustand';
-import type { CaptureMode, EncounterType, EventSessionRecord } from '@/lib/types';
+
+import type {
+  CaptureMode,
+  EncounterType,
+  EventSessionRecord,
+} from '@/lib/types';
 
 interface SessionState {
   activeSessionId: string | undefined;
@@ -24,7 +29,9 @@ export const useSessionStore = create<SessionState>((set) => ({
       activeSessionId,
       activeMode: activeMode ?? s.activeMode,
       activeEncounterType:
-        activeEncounterType !== undefined ? activeEncounterType : s.activeEncounterType,
+        activeEncounterType !== undefined
+          ? activeEncounterType
+          : s.activeEncounterType,
     })),
   setSessions: (sessions) => set({ sessions }),
 }));

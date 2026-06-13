@@ -1,3 +1,8 @@
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useQuery } from '@tanstack/react-query';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -7,18 +12,17 @@ import {
   View,
   Alert,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { api } from '@/lib/api';
-import { buildApiUrl, getAccessToken } from '@/lib/api-config';
-import { createExportJob, fetchContacts, fetchExportJob } from '@/lib/api-client';
-import { COLORS } from '@/lib/constants';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { api } from '@/lib/api';
+import {
+  createExportJob,
+  fetchContacts,
+  fetchExportJob,
+} from '@/lib/api-client';
+import { buildApiUrl, getAccessToken } from '@/lib/api-config';
+import { COLORS } from '@/lib/constants';
 
 const LAST_EXPORT_KEY = 'cardvault_last_export_time';
 
@@ -56,7 +60,11 @@ async function pollExportReady(jobId: string) {
       return job;
     }
     if (job.status === 'failed' || job.status === 'expired') {
-      throw new Error(job.status === 'failed' ? 'Export job failed on server.' : 'Export expired.');
+      throw new Error(
+        job.status === 'failed'
+          ? 'Export job failed on server.'
+          : 'Export expired.',
+      );
     }
     await new Promise((resolve) => setTimeout(resolve, 2000));
   }
@@ -107,22 +115,37 @@ export default function ExportScreen() {
       await AsyncStorage.setItem(LAST_EXPORT_KEY, formattedTime);
       setLastExported(formattedTime);
     } catch (error) {
-      Alert.alert('Export Failed', error instanceof Error ? error.message : 'Unknown error during export.');
+      Alert.alert(
+        'Export Failed',
+        error instanceof Error ? error.message : 'Unknown error during export.',
+      );
     } finally {
       setExporting(false);
     }
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      edges={['top', 'left', 'right']}
+    >
       <View style={styles.content}>
-        <Text style={[styles.title, { color: colors.text }]}>Export My Contacts</Text>
+        <Text style={[styles.title, { color: colors.text }]}>
+          Export My Contacts
+        </Text>
         <Text style={[styles.subtitle, { color: colors.muted }]}>
           Request a server-side export of your contacts (CSV or Excel).
         </Text>
 
-        <View style={[styles.totalBanner, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.totalText, { color: colors.muted }]}>Total contacts</Text>
+        <View
+          style={[
+            styles.totalBanner,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
+          <Text style={[styles.totalText, { color: colors.muted }]}>
+            Total contacts
+          </Text>
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{totalContacts}</Text>
           </View>
@@ -130,26 +153,55 @@ export default function ExportScreen() {
 
         <View style={styles.optionsContainer}>
           <Pressable
-            style={[styles.cardCsv, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            style={[
+              styles.cardCsv,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
             onPress={() => handleExport('csv')}
             disabled={exporting}
           >
-            <View style={[styles.iconBg, { backgroundColor: isDark ? '#334155' : '#EFF6FF' }]}>
-              <Ionicons name="document-text" size={24} color={isDark ? '#60A5FA' : COLORS.accent} />
+            <View
+              style={[
+                styles.iconBg,
+                { backgroundColor: isDark ? '#334155' : '#EFF6FF' },
+              ]}
+            >
+              <Ionicons
+                name="document-text"
+                size={24}
+                color={isDark ? '#60A5FA' : COLORS.accent}
+              />
             </View>
             <View style={styles.cardTextContainer}>
-              <Text style={[styles.cardTitle, { color: colors.text }]}>Export as CSV</Text>
-              <Text style={[styles.cardSubtitle, { color: colors.muted }]}>Server-generated CSV file</Text>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>
+                Export as CSV
+              </Text>
+              <Text style={[styles.cardSubtitle, { color: colors.muted }]}>
+                Server-generated CSV file
+              </Text>
             </View>
           </Pressable>
 
-          <Pressable style={styles.cardExcel} onPress={() => handleExport('xlsx')} disabled={exporting}>
-            <View style={[styles.iconBg, { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}>
+          <Pressable
+            style={styles.cardExcel}
+            onPress={() => handleExport('xlsx')}
+            disabled={exporting}
+          >
+            <View
+              style={[
+                styles.iconBg,
+                { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
+              ]}
+            >
               <Ionicons name="grid" size={24} color="#FFFFFF" />
             </View>
             <View style={styles.cardTextContainer}>
-              <Text style={[styles.cardTitle, { color: '#FFFFFF' }]}>Export as Excel</Text>
-              <Text style={[styles.cardSubtitle, { color: '#93C5FD' }]}>Server-generated .xlsx file</Text>
+              <Text style={[styles.cardTitle, { color: '#FFFFFF' }]}>
+                Export as Excel
+              </Text>
+              <Text style={[styles.cardSubtitle, { color: '#93C5FD' }]}>
+                Server-generated .xlsx file
+              </Text>
             </View>
           </Pressable>
         </View>
@@ -157,12 +209,16 @@ export default function ExportScreen() {
         {exporting && (
           <View style={styles.exportingRow}>
             <ActivityIndicator color={colors.accent} size="small" />
-            <Text style={[styles.exportingText, { color: colors.muted }]}>Preparing export on server…</Text>
+            <Text style={[styles.exportingText, { color: colors.muted }]}>
+              Preparing export on server…
+            </Text>
           </View>
         )}
 
         {lastExported && (
-          <Text style={[styles.statusText, { color: colors.muted }]}>Last exported: {lastExported}</Text>
+          <Text style={[styles.statusText, { color: colors.muted }]}>
+            Last exported: {lastExported}
+          </Text>
         )}
       </View>
     </SafeAreaView>
@@ -227,7 +283,18 @@ const styles = StyleSheet.create({
   cardTextContainer: { flex: 1 },
   cardTitle: { fontSize: 16, fontWeight: '700', color: '#0F172A' },
   cardSubtitle: { fontSize: 12, color: '#64748B', marginTop: 2 },
-  exportingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 20, justifyContent: 'center' },
+  exportingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 20,
+    justifyContent: 'center',
+  },
   exportingText: { fontSize: 13 },
-  statusText: { fontSize: 12, color: '#64748B', textAlign: 'center', marginTop: 24 },
+  statusText: {
+    fontSize: 12,
+    color: '#64748B',
+    textAlign: 'center',
+    marginTop: 24,
+  },
 });

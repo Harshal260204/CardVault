@@ -1,3 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
+import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
 import React from 'react';
 import {
   Modal,
@@ -8,43 +12,52 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
-import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
-import { useSessionStore } from '@/stores/session-store';
+
+import { useThemeColors } from '@/hooks/useThemeColors';
 import { api } from '@/lib/api';
-import { fetchSessions, submitOcrJob, getApiErrorMessage } from '@/lib/api-client';
-import { COLORS } from '@/lib/constants';
-import { randomUuid } from '@/lib/uuid';
+import { fetchSessions, getApiErrorMessage } from '@/lib/api-client';
 import { captureLog } from '@/lib/capture-logger';
+import { COLORS } from '@/lib/constants';
+import {
+  OfflineQueuedError,
+  submitOcrWithOfflineFallback,
+} from '@/lib/sync/sync-service';
+import { randomUuid } from '@/lib/uuid';
+import { useSessionStore } from '@/stores/session-store';
 
 interface CameraScannerModalProps {
   visible: boolean;
   onClose: () => void;
 }
 
-export default function CameraScannerModal({ visible, onClose }: CameraScannerModalProps) {
+export default function CameraScannerModal({
+  visible,
+  onClose,
+}: CameraScannerModalProps) {
   const router = useRouter();
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const activeMode = useSessionStore((s) => s.activeMode);
-  const setActiveSession = useSessionStore((s) => s.setActiveSession);
+  const activeEncounterType = useSessionStore((s) => s.activeEncounterType);
+  const colors = useThemeColors();
   const [uploading, setUploading] = React.useState(false);
 
   const sessions = useQuery({
     queryKey: ['sessions', 'mine', 'active'],
-    queryFn: () => fetchSessions(api, { limit: 20, status: 'active', mine: true }),
+    queryFn: () =>
+      fetchSessions(api, { limit: 20, status: 'active', mine: true }),
     enabled: visible,
   });
 
   const availableSessions = sessions.data?.items ?? [];
-  const selectedSession = availableSessions.find((s) => s.id === activeSessionId);
+  const selectedSession = availableSessions.find(
+    (s) => s.id === activeSessionId,
+  );
 
   const pickAndUpload = async (useCamera: boolean) => {
     if (!activeSessionId && activeMode !== 'quick_capture') {
       Alert.alert(
         'Active Event Required',
-        'Please select or resume an active session from the Home screen first before scanning.'
+        'Please select or resume an active session from the Home screen first before scanning.',
       );
       return;
     }
@@ -56,7 +69,10 @@ export default function CameraScannerModal({ visible, onClose }: CameraScannerMo
 
     if (!perm.granted) {
       captureLog.permissionDenied(source);
-      Alert.alert('Permission needed', 'Allow camera or photo access to scan cards.');
+      Alert.alert(
+        'Permission needed',
+        'Allow camera or photo access to scan cards.',
+      );
       return;
     }
 
@@ -80,8 +96,7 @@ export default function CameraScannerModal({ visible, onClose }: CameraScannerMo
     try {
       // Find the correct mode
       const targetMode = selectedSession?.mode ?? activeMode;
-      const job = await submitOcrJob(
-        api,
+      const job = await submitOcrWithOfflineFallback(
         {
           uri: asset.uri,
           name: asset.fileName ?? 'card.jpg',
@@ -91,10 +106,18 @@ export default function CameraScannerModal({ visible, onClose }: CameraScannerMo
           captureMode: targetMode,
           sessionId: activeSessionId || undefined,
           clientIdempotencyKey: idempotencyKey,
-        }
+          encounterType: activeEncounterType,
+        },
       );
       router.push({ pathname: '/ocr-review', params: { jobId: job.id } });
     } catch (e) {
+      if (e instanceof OfflineQueuedError) {
+        Alert.alert('Saved offline', e.message, [
+          { text: 'View queue', onPress: () => router.push('/sync-status') },
+          { text: 'OK' },
+        ]);
+        return;
+      }
       Alert.alert('Upload failed', getApiErrorMessage(e));
     } finally {
       setUploading(false);
@@ -112,11 +135,13 @@ export default function CameraScannerModal({ visible, onClose }: CameraScannerMo
     >
       <View style={styles.overlay}>
         <Pressable style={styles.dismissArea} onPress={onClose} />
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, { backgroundColor: colors.surface }]}>
           <View style={styles.dragBar} />
-          
+
           <View style={styles.header}>
-            <Text style={styles.title}>Scan Business Card</Text>
+            <Text style={[styles.title, { color: colors.text }]}>
+              Scan Business Card
+            </Text>
             <Pressable onPress={onClose} style={styles.closeBtn}>
               <Ionicons name="close" size={20} color={COLORS.muted} />
             </Pressable>
@@ -124,30 +149,54 @@ export default function CameraScannerModal({ visible, onClose }: CameraScannerMo
 
           {activeSessionId ? (
             <View style={styles.sessionBanner}>
-              <Ionicons name="information-circle-outline" size={18} color="#0369A1" />
+              <Ionicons
+                name="information-circle-outline"
+                size={18}
+                color="#0369A1"
+              />
               <Text style={styles.sessionBannerText}>
-                Scanning into event: <Text style={{ fontWeight: '600' }}>{selectedSession?.name ?? 'Active Session'}</Text>
+                Scanning into event:{' '}
+                <Text style={{ fontWeight: '600' }}>
+                  {selectedSession?.name ?? 'Active Session'}
+                </Text>
               </Text>
             </View>
           ) : activeMode === 'quick_capture' ? (
-            <View style={[styles.sessionBanner, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
-              <Ionicons name="flash-outline" size={18} color="#16A34A" style={{ marginRight: 4 }} />
+            <View
+              style={[
+                styles.sessionBanner,
+                { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' },
+              ]}
+            >
+              <Ionicons
+                name="flash-outline"
+                size={18}
+                color="#16A34A"
+                style={{ marginRight: 4 }}
+              />
               <Text style={[styles.sessionBannerText, { color: '#16A34A' }]}>
-                Quick Capture Mode: <Text style={{ fontWeight: '600' }}>Direct scan to contact list</Text>
+                Quick Capture Mode:{' '}
+                <Text style={{ fontWeight: '600' }}>
+                  Direct scan to contact list
+                </Text>
               </Text>
             </View>
           ) : (
             <View style={styles.sessionWarningBanner}>
               <Ionicons name="warning-outline" size={18} color="#92400E" />
               <Text style={styles.sessionWarningText}>
-                No active event. Please resume a session on the Home screen first.
+                No active event. Please resume a session on the Home screen
+                first.
               </Text>
             </View>
           )}
 
           <View style={styles.options}>
             <Pressable
-              style={[styles.optButton, !isScanAllowed && styles.optButtonDisabled]}
+              style={[
+                styles.optButton,
+                !isScanAllowed && styles.optButtonDisabled,
+              ]}
               onPress={() => isScanAllowed && pickAndUpload(true)}
               disabled={!isScanAllowed || uploading}
             >
@@ -155,11 +204,16 @@ export default function CameraScannerModal({ visible, onClose }: CameraScannerMo
                 <Ionicons name="camera" size={28} color={COLORS.accent} />
               </View>
               <Text style={styles.optTitle}>Take Photo</Text>
-              <Text style={styles.optSubtitle}>Use camera to scan business card</Text>
+              <Text style={styles.optSubtitle}>
+                Use camera to scan business card
+              </Text>
             </Pressable>
 
             <Pressable
-              style={[styles.optButton, !isScanAllowed && styles.optButtonDisabled]}
+              style={[
+                styles.optButton,
+                !isScanAllowed && styles.optButtonDisabled,
+              ]}
               onPress={() => isScanAllowed && pickAndUpload(false)}
               disabled={!isScanAllowed || uploading}
             >
@@ -167,7 +221,9 @@ export default function CameraScannerModal({ visible, onClose }: CameraScannerMo
                 <Ionicons name="images" size={28} color="#059669" />
               </View>
               <Text style={styles.optTitle}>Choose from Gallery</Text>
-              <Text style={styles.optSubtitle}>Select an existing image file</Text>
+              <Text style={styles.optSubtitle}>
+                Select an existing image file
+              </Text>
             </Pressable>
           </View>
 
