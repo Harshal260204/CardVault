@@ -1,37 +1,55 @@
 'use client';
 
+import { Users as UsersIcon, Plus, MoreHorizontal } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
+
 import { DataTable, type DataTableColumn } from '@/components/admin/data-table';
 import { PaginationBar } from '@/components/admin/pagination-bar';
 import { PageHeader } from '@/components/layout/page-header';
+import { EmptyState } from '@/components/shared/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ListSkeleton } from '@/components/shared/list-skeleton';
-import { useDeleteOrgUser, useOrganizations, useUpdateOrgUser } from '@/hooks/use-admin';
+import { Modal, ConfirmDialog } from '@/components/ui/modal';
+import {
+  useDeleteOrgUser,
+  useOrganizations,
+  useUpdateOrgUser,
+} from '@/hooks/use-admin';
 import { useOrgUsers, useCreateOrgUser } from '@/hooks/use-org-users';
 import { formatRoleLabel, isPlatformSuperAdmin } from '@/lib/roles';
 import type { OrgUserRecord, UserRole } from '@/lib/types';
 import { useAuthStore } from '@/stores/auth-store';
-import { useEffect, useState } from 'react';
-import { EmptyState } from '@/components/shared/empty-state';
-import { Users as UsersIcon } from 'lucide-react';
-
-function roleLabel(role: string): string {
-  return formatRoleLabel(role);
-}
 
 function isProtectedRole(role: string): boolean {
-  return role === 'platform_super_admin' || role === 'tenant_admin' || role === 'platform_support';
+  return (
+    role === 'platform_super_admin' ||
+    role === 'tenant_admin' ||
+    role === 'platform_support'
+  );
 }
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (typeof error === 'object' && error !== null) {
-    const typed = error as { response?: { data?: { message?: string } }; message?: string };
+    const typed = error as {
+      response?: { data?: { message?: string } };
+      message?: string;
+    };
     return typed.response?.data?.message ?? typed.message ?? fallback;
   }
   return fallback;
 }
+
+const getInitials = (name: string | null) => {
+  if (!name) return 'U';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return parts[0].slice(0, 2).toUpperCase();
+};
 
 type CreateUserFormState = {
   email: string;
@@ -47,13 +65,21 @@ type EditUserFormState = {
   isActive: boolean;
 };
 
-export default function AdminUsersPage() {
+function UsersContent() {
   const currentUser = useAuthStore((s) => s.user);
   const isSuperAdmin = isPlatformSuperAdmin(currentUser?.role);
+
+  const searchParams = useSearchParams();
+  const initialOrgId =
+    searchParams.get('orgId') || searchParams.get('organizationId') || '';
+
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [debouncedQ, setDebouncedQ] = useState('');
-  const [selectedOrganizationId, setSelectedOrganizationId] = useState('');
+  const [selectedOrganizationId, setSelectedOrganizationId] =
+    useState(initialOrgId);
+  const [activeDropdownId, setActiveDropdownId] = useState<string | null>(null);
+
   const limit = 15;
   const updateUser = useUpdateOrgUser();
   const deleteUser = useDeleteOrgUser();
@@ -75,6 +101,7 @@ export default function AdminUsersPage() {
     isActive: true,
   });
   const [editError, setEditError] = useState<string | null>(null);
+  const [deletingUser, setDeletingUser] = useState<OrgUserRecord | null>(null);
 
   const createUser = useCreateOrgUser();
 
@@ -87,7 +114,9 @@ export default function AdminUsersPage() {
         fullName: createForm.fullName.trim(),
         role: isSuperAdmin ? createForm.role : 'employee',
         password: createForm.password,
-        organizationId: isSuperAdmin ? createForm.organizationId.trim() : undefined,
+        organizationId: isSuperAdmin
+          ? createForm.organizationId.trim()
+          : undefined,
       });
       setIsCreateOpen(false);
       setCreateForm({
@@ -95,7 +124,8 @@ export default function AdminUsersPage() {
         fullName: '',
         role: 'employee',
         password: '',
-        organizationId: selectedOrganizationId || currentUser?.organizationId || '',
+        organizationId:
+          selectedOrganizationId || currentUser?.organizationId || '',
       });
     } catch (err: unknown) {
       setCreateError(getErrorMessage(err, 'Failed to create user'));
@@ -109,7 +139,8 @@ export default function AdminUsersPage() {
       fullName: '',
       role: 'employee',
       password: '',
-      organizationId: selectedOrganizationId || currentUser?.organizationId || '',
+      organizationId:
+        selectedOrganizationId || currentUser?.organizationId || '',
     });
     setIsCreateOpen(true);
   };
@@ -142,15 +173,13 @@ export default function AdminUsersPage() {
     }
   };
 
-  const handleDeleteUser = async (user: OrgUserRecord) => {
-    if (!window.confirm(`Delete ${user.fullName ?? user.email}?`)) {
-      return;
-    }
-
+  const handleDeleteConfirm = async () => {
+    if (!deletingUser) return;
     try {
-      await deleteUser.mutateAsync(user.id);
+      await deleteUser.mutateAsync(deletingUser.id);
+      setDeletingUser(null);
     } catch {
-      /* surface later */
+      /* handled */
     }
   };
 
@@ -166,7 +195,10 @@ export default function AdminUsersPage() {
     page,
     limit,
     q: debouncedQ || undefined,
-    organizationId: isSuperAdmin && selectedOrganizationId ? selectedOrganizationId : undefined,
+    organizationId:
+      isSuperAdmin && selectedOrganizationId
+        ? selectedOrganizationId
+        : undefined,
   });
 
   const totalPages = Math.max(1, Math.ceil((data?.meta.total ?? 0) / limit));
@@ -177,9 +209,18 @@ export default function AdminUsersPage() {
       header: 'User',
       className: 'min-w-[200px]',
       render: (row) => (
-        <div>
-          <p className="font-medium text-foreground">{row.fullName ?? row.email}</p>
-          <p className="text-xs text-text-tertiary">{row.email}</p>
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-full bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-400 flex items-center justify-center font-bold text-xs shrink-0">
+            {getInitials(row.fullName ?? row.email)}
+          </div>
+          <div className="min-w-0">
+            <p className="font-medium text-foreground truncate">
+              {row.fullName ?? row.email}
+            </p>
+            {row.fullName && (
+              <p className="text-xs text-text-tertiary truncate">{row.email}</p>
+            )}
+          </div>
         </div>
       ),
     },
@@ -189,7 +230,9 @@ export default function AdminUsersPage() {
             key: 'organization',
             header: 'Organization',
             className: 'min-w-[150px]',
-            render: (row: OrgUserRecord) => <span>{row.organizationName ?? row.organizationId}</span>,
+            render: (row: OrgUserRecord) => (
+              <span>{row.organizationName ?? row.organizationId}</span>
+            ),
           } satisfies DataTableColumn<OrgUserRecord>,
         ]
       : []),
@@ -197,14 +240,16 @@ export default function AdminUsersPage() {
       key: 'role',
       header: 'Role',
       className: 'w-[120px]',
-      render: (row) => <Badge variant="default">{roleLabel(row.role)}</Badge>,
+      render: (row) => (
+        <Badge variant="default">{formatRoleLabel(row.role)}</Badge>
+      ),
     },
     {
       key: 'status',
       header: 'Status',
       className: 'w-[100px]',
       render: (row) => (
-        <Badge variant={row.isActive ? 'success' : 'error'}>
+        <Badge variant={row.isActive ? 'success' : 'default'}>
           {row.isActive ? 'Active' : 'Inactive'}
         </Badge>
       ),
@@ -215,7 +260,9 @@ export default function AdminUsersPage() {
       className: 'w-[140px]',
       render: (row) => (
         <span className="text-xs text-text-tertiary">
-          {row.lastActiveAt ? new Date(row.lastActiveAt).toLocaleDateString() : '—'}
+          {row.lastActiveAt
+            ? new Date(row.lastActiveAt).toLocaleDateString()
+            : '—'}
         </span>
       ),
     },
@@ -225,173 +272,105 @@ export default function AdminUsersPage() {
       className: 'w-[120px] text-right',
       render: (row) => {
         const isProtected = isProtectedRole(row.role);
+        const isDropdownOpen = activeDropdownId === row.id;
         return (
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 items-center">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => openEditModal(row)}
               disabled={isProtected || updateUser.isPending}
+              className="h-7 px-2.5 text-xs"
+              title="Edit member details"
             >
               Edit
             </Button>
-            <Button
-              variant="danger"
-              size="sm"
-              disabled={row.id === currentUser?.id || isProtected || deleteUser.isPending}
-              onClick={() => handleDeleteUser(row)}
-            >
-              Delete
-            </Button>
+            <div className="relative">
+              <button
+                onClick={() =>
+                  setActiveDropdownId(isDropdownOpen ? null : row.id)
+                }
+                className="h-7 w-7 flex items-center justify-center text-text-secondary hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-md border border-border/40 focus:outline-none disabled:opacity-50"
+                title="More actions"
+                disabled={isProtected}
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+              {isDropdownOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setActiveDropdownId(null)}
+                  />
+                  <div className="absolute right-0 mt-1 w-44 rounded-md border border-neutral-200 dark:border-neutral-800 bg-surface shadow-lg py-1 z-50 text-left">
+                    <button
+                      onClick={() => {
+                        setActiveDropdownId(null);
+                        openEditModal(row);
+                      }}
+                      className="w-full text-left px-3 py-1.5 text-xs text-text-primary hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                    >
+                      Change role
+                    </button>
+                    <button
+                      onClick={async () => {
+                        setActiveDropdownId(null);
+                        try {
+                          await updateUser.mutateAsync({
+                            id: row.id,
+                            isActive: !row.isActive,
+                          });
+                        } catch {}
+                      }}
+                      className="w-full text-left px-3 py-1.5 text-xs text-text-primary hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                    >
+                      {row.isActive ? 'Deactivate' : 'Activate'}
+                    </button>
+                    <div className="border-t border-neutral-100 dark:border-neutral-800 my-1" />
+                    <button
+                      onClick={() => {
+                        setActiveDropdownId(null);
+                        setDeletingUser(row);
+                      }}
+                      className="w-full text-left px-3 py-1.5 text-xs text-red-650 hover:bg-neutral-50 dark:hover:bg-neutral-800 font-medium"
+                      disabled={row.id === currentUser?.id}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         );
       },
     },
   ];
 
+  if (currentUser && !isSuperAdmin) {
+    return null;
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Users"
+        title="Team"
         description={
           isSuperAdmin
             ? 'Manage managers and employees across organizations'
             : 'Create and manage employee accounts in your organization'
         }
         action={
-          <Button onClick={openCreateModal}>Add User</Button>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={openCreateModal}
+            className="flex items-center gap-1.5"
+          >
+            <Plus className="h-4 w-4" /> Add member
+          </Button>
         }
       />
-
-      {isCreateOpen && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold text-foreground mb-4">Create New User</h3>
-            {createError && (
-              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-2 mb-4">
-                {createError}
-              </p>
-            )}
-            <form onSubmit={handleCreateUser} className="space-y-4">
-              <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-tertiary mb-1">
-                  Full Name
-                </label>
-                <Input
-                  required
-                  placeholder="e.g. Sales Employee"
-                  value={createForm.fullName}
-                  onChange={(e) =>
-                    setCreateForm((current) => ({ ...current, fullName: e.target.value }))
-                  }
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-tertiary mb-1">
-                  Email
-                </label>
-                <Input
-                  required
-                  type="email"
-                  placeholder="e.g. employee@cardvault.local"
-                  value={createForm.email}
-                  onChange={(e) =>
-                    setCreateForm((current) => ({ ...current, email: e.target.value }))
-                  }
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-tertiary mb-1">
-                  Password
-                </label>
-                <Input
-                  required
-                  type="password"
-                  placeholder="At least 8 characters"
-                  value={createForm.password}
-                  onChange={(e) =>
-                    setCreateForm((current) => ({ ...current, password: e.target.value }))
-                  }
-                  minLength={8}
-                />
-              </div>
-
-              {isSuperAdmin ? (
-                <>
-                  <div>
-                    <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-tertiary mb-1">
-                      Role
-                    </label>
-                    <select
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                      value={createForm.role}
-                      onChange={(e) =>
-                        setCreateForm((current) => ({
-                          ...current,
-                          role: e.target.value as UserRole,
-                        }))
-                      }
-                    >
-                      <option value="employee">Employee</option>
-                      <option value="manager">Manager</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-tertiary mb-1">
-                      Organization
-                    </label>
-                    <select
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                      value={createForm.organizationId}
-                      onChange={(e) =>
-                        setCreateForm((current) => ({
-                          ...current,
-                          organizationId: e.target.value,
-                        }))
-                      }
-                    >
-                      <option value="" disabled>
-                        Select organization
-                      </option>
-                      {organizations?.map((org) => (
-                        <option key={org.id} value={org.id}>
-                          {org.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </>
-              ) : (
-                <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-tertiary mb-1">
-                    Role
-                  </label>
-                  <Input value="Employee" disabled />
-                </div>
-              )}
-
-              <div className="flex justify-end gap-3 pt-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => {
-                    setIsCreateOpen(false);
-                    setCreateError(null);
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={createUser.isPending}>
-                  {createUser.isPending ? 'Creating...' : 'Create'}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       <Card>
         <CardContent className="space-y-4 p-4">
@@ -433,8 +412,8 @@ export default function AdminUsersPage() {
                 title="No users yet"
                 description={
                   isSuperAdmin
-                    ? "Create a user to assign them to organizations."
-                    : "Invite your first salesperson to start scanning cards."
+                    ? 'Create a user to assign them to organizations.'
+                    : 'Invite your first salesperson to start scanning cards.'
                 }
                 actionLabel="Add User"
                 onAction={openCreateModal}
@@ -452,80 +431,277 @@ export default function AdminUsersPage() {
         </CardContent>
       </Card>
 
-      {editingUser ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-6 shadow-lg">
-            <h3 className="mb-4 text-lg font-semibold text-foreground">Edit User</h3>
+      {/* CREATE USER MODAL */}
+      <Modal
+        open={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        title="Add team member"
+        size="md"
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setIsCreateOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="create-user-form"
+              loading={createUser.isPending}
+            >
+              Add member
+            </Button>
+          </div>
+        }
+      >
+        {createError && (
+          <p className="text-sm text-red-655 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 rounded-md p-2 mb-4">
+            {createError}
+          </p>
+        )}
+        <form
+          id="create-user-form"
+          onSubmit={handleCreateUser}
+          className="space-y-4"
+        >
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-tertiary mb-1">
+              Full Name
+            </label>
+            <Input
+              required
+              placeholder="e.g. Sales Employee"
+              value={createForm.fullName}
+              onChange={(e) =>
+                setCreateForm((current) => ({
+                  ...current,
+                  fullName: e.target.value,
+                }))
+              }
+            />
+          </div>
 
-            {editError ? (
-              <p className="mb-4 rounded-md border border-red-200 bg-red-50 p-2 text-sm text-red-600">
-                {editError}
-              </p>
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-tertiary mb-1">
+              Email
+            </label>
+            <Input
+              required
+              type="email"
+              placeholder="e.g. employee@cardvault.local"
+              value={createForm.email}
+              onChange={(e) =>
+                setCreateForm((current) => ({
+                  ...current,
+                  email: e.target.value,
+                }))
+              }
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-tertiary mb-1">
+              Password
+            </label>
+            <Input
+              required
+              type="password"
+              placeholder="At least 8 characters"
+              value={createForm.password}
+              onChange={(e) =>
+                setCreateForm((current) => ({
+                  ...current,
+                  password: e.target.value,
+                }))
+              }
+              minLength={8}
+            />
+          </div>
+
+          {isSuperAdmin ? (
+            <>
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-tertiary mb-1">
+                  Role
+                </label>
+                <select
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  value={createForm.role}
+                  onChange={(e) =>
+                    setCreateForm((current) => ({
+                      ...current,
+                      role: e.target.value as UserRole,
+                    }))
+                  }
+                >
+                  <option value="employee">Employee</option>
+                  <option value="manager">Manager</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-tertiary mb-1">
+                  Organization
+                </label>
+                <select
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  value={createForm.organizationId}
+                  onChange={(e) =>
+                    setCreateForm((current) => ({
+                      ...current,
+                      organizationId: e.target.value,
+                    }))
+                  }
+                >
+                  <option value="" disabled>
+                    Select organization
+                  </option>
+                  {organizations?.map((org) => (
+                    <option key={org.id} value={org.id}>
+                      {org.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          ) : (
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-tertiary mb-1">
+                Role
+              </label>
+              <Input value="Employee" disabled />
+            </div>
+          )}
+        </form>
+      </Modal>
+
+      {/* EDIT USER MODAL */}
+      <Modal
+        open={!!editingUser}
+        onClose={() => setEditingUser(null)}
+        title="Edit member"
+        size="md"
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setEditingUser(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="edit-user-form"
+              loading={updateUser.isPending}
+            >
+              Save Changes
+            </Button>
+          </div>
+        }
+      >
+        {editError && (
+          <p className="mb-4 rounded-md border border-red-200 bg-red-50 dark:bg-red-950/20 p-2 text-sm text-red-650">
+            {editError}
+          </p>
+        )}
+        {editingUser && (
+          <form
+            id="edit-user-form"
+            onSubmit={handleEditUser}
+            className="space-y-4"
+          >
+            <Input label="Email" value={editingUser.email} disabled />
+            <Input
+              label="Full Name"
+              value={editForm.fullName}
+              onChange={(e) =>
+                setEditForm((current) => ({
+                  ...current,
+                  fullName: e.target.value,
+                }))
+              }
+            />
+
+            {isSuperAdmin ? (
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-tertiary mb-1">
+                  Role
+                </label>
+                <select
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  value={editForm.role}
+                  onChange={(e) =>
+                    setEditForm((current) => ({
+                      ...current,
+                      role: e.target.value as UserRole,
+                    }))
+                  }
+                  disabled={isProtectedRole(editingUser.role)}
+                >
+                  <option value="employee">Employee</option>
+                  <option value="manager">Manager</option>
+                  <option value="tenant_admin">Tenant Admin</option>
+                  {editingUser.role === 'platform_super_admin' ? (
+                    <option value="platform_super_admin">
+                      Platform Super Admin
+                    </option>
+                  ) : null}
+                  {editingUser.role === 'platform_support' ? (
+                    <option value="platform_support">Platform Support</option>
+                  ) : null}
+                </select>
+              </div>
             ) : null}
 
-            <form onSubmit={handleEditUser} className="space-y-4">
-              <Input label="Email" value={editingUser.email} disabled />
-              <Input
-                label="Full Name"
-                value={editForm.fullName}
+            <label className="flex items-center gap-2 text-sm text-foreground select-none">
+              <input
+                type="checkbox"
+                checked={editForm.isActive}
                 onChange={(e) =>
-                  setEditForm((current) => ({ ...current, fullName: e.target.value }))
+                  setEditForm((current) => ({
+                    ...current,
+                    isActive: e.target.checked,
+                  }))
                 }
+                disabled={editingUser.id === currentUser?.id}
               />
+              Account is active
+            </label>
+          </form>
+        )}
+      </Modal>
 
-              {isSuperAdmin ? (
-                <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-tertiary mb-1">
-                    Role
-                  </label>
-                  <select
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                    value={editForm.role}
-                    onChange={(e) =>
-                      setEditForm((current) => ({
-                        ...current,
-                        role: e.target.value as UserRole,
-                      }))
-                    }
-                    disabled={isProtectedRole(editingUser.role)}
-                  >
-                    <option value="employee">Employee</option>
-                    <option value="manager">Manager</option>
-                    <option value="tenant_admin">Tenant Admin</option>
-                    {editingUser.role === 'platform_super_admin' ? (
-                      <option value="platform_super_admin">Platform Super Admin</option>
-                    ) : null}
-                    {editingUser.role === 'platform_support' ? (
-                      <option value="platform_support">Platform Support</option>
-                    ) : null}
-                  </select>
-                </div>
-              ) : null}
-
-              <label className="flex items-center gap-2 text-sm text-foreground">
-                <input
-                  type="checkbox"
-                  checked={editForm.isActive}
-                  onChange={(e) =>
-                    setEditForm((current) => ({ ...current, isActive: e.target.checked }))
-                  }
-                  disabled={editingUser.id === currentUser?.id}
-                />
-                Account is active
-              </label>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <Button type="button" variant="ghost" onClick={() => setEditingUser(null)}>
-                  Cancel
-                </Button>
-                <Button type="submit" loading={updateUser.isPending}>
-                  Save Changes
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
+      {/* DELETE CONFIRMATION DIALOG */}
+      <ConfirmDialog
+        open={!!deletingUser}
+        onCancel={() => setDeletingUser(null)}
+        onConfirm={handleDeleteConfirm}
+        title="Remove team member"
+        message={
+          deletingUser
+            ? `Remove ${deletingUser.fullName ?? deletingUser.email} from the organization? This cannot be undone.`
+            : ''
+        }
+        loading={deleteUser.isPending}
+      />
     </div>
+  );
+}
+
+export default function AdminUsersPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-4 animate-pulse">
+          <div className="h-9 w-48 bg-neutral-200 dark:bg-neutral-800 rounded" />
+          <div className="h-64 bg-neutral-200 dark:bg-neutral-800 rounded" />
+        </div>
+      }
+    >
+      <UsersContent />
+    </Suspense>
   );
 }

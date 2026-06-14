@@ -1,8 +1,9 @@
 'use client';
 
 import { CountUp } from '@/components/shared/count-up';
-import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+
 import type { ReactNode } from 'react';
 
 interface AdminStatCardProps {
@@ -12,25 +13,70 @@ interface AdminStatCardProps {
   hint?: string;
   loading?: boolean;
   className?: string;
+  trend?: {
+    value: number;
+    direction: 'up' | 'down';
+    label?: string;
+  };
+  indicatorColor?: string; // e.g. "border-b-brand-600", "border-b-teal-500", etc.
+  accentColor?: string; // CSS color value for bottom border accent
 }
 
-export function AdminStatCard({ label, value, icon, hint, loading, className }: AdminStatCardProps) {
+export function AdminStatCard({
+  label,
+  value,
+  icon,
+  hint,
+  loading,
+  className,
+  trend,
+  indicatorColor,
+  accentColor,
+}: AdminStatCardProps) {
   return (
-    <Card className={cn('min-w-[140px] flex-1 shadow-xs border border-border/80 bg-surface', className)}>
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between gap-2">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-text-tertiary">{label}</p>
-          {icon ? <span className="text-text-tertiary" aria-hidden="true">{icon}</span> : null}
-        </div>
-        <p className="mt-1 text-[28px] font-bold tracking-tight tabular-nums text-text-primary leading-none">
-          {loading ? (
-            <span className="inline-block h-8 w-16 animate-pulse rounded bg-muted" aria-hidden="true" />
-          ) : (
-            <CountUp value={value} />
+    <div
+      className={cn(
+        'p-5 rounded-lg border border-neutral-200 bg-neutral-0 shadow-xs flex-1 min-w-[140px]',
+        accentColor || indicatorColor ? 'border-b-2' : '',
+        indicatorColor,
+        className,
+      )}
+      style={accentColor ? { borderBottomColor: accentColor } : undefined}
+    >
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-2">
+          {icon && (
+            <div className="text-text-tertiary h-4 w-4 shrink-0 flex items-center justify-center [&_svg]:h-4 [&_svg]:w-4">
+              {icon}
+            </div>
           )}
-        </p>
-        {hint ? <p className="mt-1.5 text-xs text-text-tertiary">{hint}</p> : null}
-      </CardContent>
-    </Card>
+          <p className="text-[11px] font-medium uppercase tracking-wider text-text-tertiary">
+            {label}
+          </p>
+        </div>
+        {trend && (
+          <span
+            className={cn(
+              'text-xs font-medium px-1.5 py-0.5 rounded',
+              trend.direction === 'up'
+                ? 'bg-success-bg text-success-text'
+                : 'bg-error-bg text-error-text',
+            )}
+          >
+            {trend.direction === 'up' ? '↑' : '↓'} {Math.abs(trend.value)}%
+          </span>
+        )}
+      </div>
+
+      <p className="text-[36px] font-bold leading-none mt-3 text-text-primary tracking-tight">
+        {loading ? (
+          <Skeleton className="h-9 w-20" />
+        ) : (
+          <CountUp value={value} />
+        )}
+      </p>
+
+      {hint && <p className="text-xs text-text-tertiary mt-1.5">{hint}</p>}
+    </div>
   );
 }

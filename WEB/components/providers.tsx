@@ -1,8 +1,10 @@
 'use client';
 
-import { AuthBootstrap } from '@/components/auth-bootstrap';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
+
+import { AuthBootstrap } from '@/components/auth-bootstrap';
+import { ToastViewport } from '@/components/ui/toast';
 import { useThemeStore } from '@/stores/theme-store';
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -31,6 +33,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthBootstrap>{children}</AuthBootstrap>
+      <ToastViewport />
     </QueryClientProvider>
   );
 }

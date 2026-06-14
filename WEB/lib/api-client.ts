@@ -393,9 +393,12 @@ export async function mergeContacts(
 
 export async function fetchDashboard(
   client: AxiosInstance,
+  params?: { period?: string },
 ): Promise<DashboardStats> {
-  const { data } =
-    await client.get<ApiResponse<DashboardStats>>('/admin/dashboard');
+  const { data } = await client.get<ApiResponse<DashboardStats>>(
+    '/admin/dashboard',
+    { params },
+  );
   return data.data;
 }
 

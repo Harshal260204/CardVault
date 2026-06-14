@@ -1,5 +1,7 @@
 'use client';
 
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
 import { api } from '@/lib/api';
 import {
   createOrganization,
@@ -16,12 +18,13 @@ import {
 } from '@/lib/api-client';
 import { queryKeys } from '@/lib/query-keys';
 import type { UserRole } from '@/lib/types';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-export function useDashboard() {
+export function useDashboard(params?: { period?: string }) {
   return useQuery({
-    queryKey: queryKeys.admin.dashboard,
-    queryFn: () => fetchDashboard(api),
+    queryKey: params?.period
+      ? [...queryKeys.admin.dashboard, params.period]
+      : queryKeys.admin.dashboard,
+    queryFn: () => fetchDashboard(api, params),
   });
 }
 
@@ -119,7 +122,9 @@ export function useCreateOrganization() {
   return useMutation({
     mutationFn: createOrganization.bind(null, api),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.organizations });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.organizations,
+      });
     },
   });
 }
@@ -140,7 +145,9 @@ export function useUpdateOrganization() {
       isActive?: boolean;
     }) => updateOrganization(api, id, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.organizations });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.organizations,
+      });
     },
   });
 }
@@ -150,7 +157,9 @@ export function useDeleteOrganization() {
   return useMutation({
     mutationFn: (id: string) => deleteOrganization(api, id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.organizations });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.organizations,
+      });
     },
   });
 }

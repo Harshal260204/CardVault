@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+
 import type { HTMLAttributes } from 'react';
 
 const variants = {
@@ -7,9 +8,9 @@ const variants = {
   success: 'bg-success/10 text-success',
   warning: 'bg-warning/10 text-warning',
   error: 'bg-error/10 text-error',
-  hot: 'bg-red-50 text-qualifier-hot border border-red-200',
-  warm: 'bg-amber-50 text-qualifier-warm border border-amber-200',
-  cold: 'bg-blue-50 text-qualifier-cold border border-blue-200',
+  hot: 'bg-qualifier-hot-bg text-qualifier-hot-text border border-qualifier-hot-border',
+  warm: 'bg-qualifier-warm-bg text-qualifier-warm-text border border-qualifier-warm-border',
+  cold: 'bg-qualifier-cold-bg text-qualifier-cold-text border border-qualifier-cold-border',
 };
 
 export function Badge({

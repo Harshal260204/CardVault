@@ -7,7 +7,9 @@ const CAPTURE_LABELS: Record<CaptureMode, string> = {
   legacy: 'Legacy',
 };
 
-export function formatCaptureMode(mode: CaptureMode | null | undefined): string {
+export function formatCaptureMode(
+  mode: CaptureMode | null | undefined,
+): string {
   if (!mode) return 'Legacy';
   return CAPTURE_LABELS[mode] ?? mode;
 }
@@ -21,7 +23,9 @@ export function leadBadgeVariant(
   return 'default';
 }
 
-export function formatLeadLabel(qualifier: LeadQualifier | null | undefined): string {
+export function formatLeadLabel(
+  qualifier: LeadQualifier | null | undefined,
+): string {
   if (!qualifier) return 'Unqualified';
   return qualifier.charAt(0).toUpperCase() + qualifier.slice(1);
 }

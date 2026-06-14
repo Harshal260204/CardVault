@@ -1,11 +1,19 @@
 'use client';
 
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
 import { api } from '@/lib/api';
-import { createContact, deleteContact, fetchContact, fetchContacts, mergeContacts, updateContact } from '@/lib/api-client';
+import {
+  createContact,
+  deleteContact,
+  fetchContact,
+  fetchContacts,
+  mergeContacts,
+  updateContact,
+} from '@/lib/api-client';
+import type { CreateContactPayload } from '@/lib/api-client';
 import { queryKeys } from '@/lib/query-keys';
 import type { ContactSearchParams } from '@/lib/validation';
-import type { CreateContactPayload } from '@/lib/api-client';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 export function useContactsList(params: ContactSearchParams) {
   return useQuery({
@@ -36,9 +44,12 @@ export function useCreateContact() {
 export function useUpdateContact(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: Partial<CreateContactPayload>) => updateContact(api, id, payload),
+    mutationFn: (payload: Partial<CreateContactPayload>) =>
+      updateContact(api, id, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.contacts.detail(id) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.contacts.detail(id),
+      });
       queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all });
     },
   });
@@ -57,9 +68,12 @@ export function useDeleteContact() {
 export function useMergeContacts(targetId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (sourceContactId: string) => mergeContacts(api, targetId, sourceContactId),
+    mutationFn: (sourceContactId: string) =>
+      mergeContacts(api, targetId, sourceContactId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.contacts.detail(targetId) });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.contacts.detail(targetId),
+      });
       queryClient.invalidateQueries({ queryKey: queryKeys.contacts.all });
     },
   });

@@ -11,8 +11,8 @@ import {
   usePlatformAnalytics,
   useSessionAnalytics,
 } from '@/hooks/use-analytics';
-import { isPlatformSuperAdmin } from '@/lib/roles';
 import { formatCaptureMode } from '@/lib/format';
+import { isPlatformSuperAdmin } from '@/lib/roles';
 import type { CaptureMode } from '@/lib/types';
 import { useAuthStore } from '@/stores/auth-store';
 
@@ -75,12 +75,26 @@ export default function AnalyticsPage() {
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <AdminStatCard label="Hot leads" value={funnel.data?.hot ?? 0} loading={funnel.isLoading} />
-        <AdminStatCard label="Warm leads" value={funnel.data?.warm ?? 0} loading={funnel.isLoading} />
-        <AdminStatCard label="Cold leads" value={funnel.data?.cold ?? 0} loading={funnel.isLoading} />
+        <AdminStatCard
+          label="Hot leads"
+          value={funnel.data?.hot ?? 0}
+          loading={funnel.isLoading}
+        />
+        <AdminStatCard
+          label="Warm leads"
+          value={funnel.data?.warm ?? 0}
+          loading={funnel.isLoading}
+        />
+        <AdminStatCard
+          label="Cold leads"
+          value={funnel.data?.cold ?? 0}
+          loading={funnel.isLoading}
+        />
         <AdminStatCard
           label="Active sessions"
-          value={sessions.data?.filter((s) => s.status === 'active').length ?? 0}
+          value={
+            sessions.data?.filter((s) => s.status === 'active').length ?? 0
+          }
           loading={sessions.isLoading}
         />
       </div>
@@ -88,13 +102,17 @@ export default function AnalyticsPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardContent className="p-6">
-            <h2 className="mb-4 text-lg font-semibold text-foreground">Lead funnel</h2>
+            <h2 className="mb-4 text-lg font-semibold text-foreground">
+              Lead funnel
+            </h2>
             <BarChart data={funnelData} />
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6">
-            <h2 className="mb-4 text-lg font-semibold text-foreground">Encounter types</h2>
+            <h2 className="mb-4 text-lg font-semibold text-foreground">
+              Encounter types
+            </h2>
             <BarChart data={encounterData} />
           </CardContent>
         </Card>
@@ -103,7 +121,9 @@ export default function AnalyticsPage() {
       <Card>
         <CardContent className="p-0">
           <div className="border-b border-border px-6 py-4">
-            <h2 className="text-lg font-semibold text-foreground">Session performance</h2>
+            <h2 className="text-lg font-semibold text-foreground">
+              Session performance
+            </h2>
           </div>
           <DataTable
             columns={sessionColumns}
@@ -122,7 +142,11 @@ export default function AnalyticsPage() {
               value={platform.data?.organizations ?? 0}
               loading={platform.isLoading}
             />
-            <AdminStatCard label="Users" value={platform.data?.users ?? 0} loading={platform.isLoading} />
+            <AdminStatCard
+              label="Users"
+              value={platform.data?.users ?? 0}
+              loading={platform.isLoading}
+            />
             <AdminStatCard
               label="Contacts"
               value={platform.data?.contacts ?? 0}

@@ -13,11 +13,26 @@ export type LeadQualifier = 'hot' | 'warm' | 'cold';
 
 export type SessionStatus = 'active' | 'closed' | 'archived';
 
-export type OcrStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'manual_fallback';
+export type OcrStatus =
+  | 'pending'
+  | 'processing'
+  | 'completed'
+  | 'failed'
+  | 'manual_fallback';
 
-export type ExportStatus = 'pending' | 'processing' | 'ready' | 'failed' | 'expired';
+export type ExportStatus =
+  | 'pending'
+  | 'processing'
+  | 'ready'
+  | 'failed'
+  | 'expired';
 
-export type SyncStatus = 'pending' | 'processing' | 'synced' | 'conflict' | 'dead_letter';
+export type SyncStatus =
+  | 'pending'
+  | 'processing'
+  | 'synced'
+  | 'conflict'
+  | 'dead_letter';
 
 export type EncounterType =
   | 'flight'

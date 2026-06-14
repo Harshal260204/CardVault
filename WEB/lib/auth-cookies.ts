@@ -13,7 +13,8 @@ export function setAuthCookies(
   role: UserRole,
   accessMaxAgeSeconds: number,
 ): void {
-  const secure = typeof window !== 'undefined' && window.location.protocol === 'https:';
+  const secure =
+    typeof window !== 'undefined' && window.location.protocol === 'https:';
   const base = `path=/; SameSite=Lax${secure ? '; Secure' : ''}`;
 
   document.cookie = `${ACCESS_COOKIE}=${accessToken}; max-age=${accessMaxAgeSeconds}; ${base}`;
@@ -30,7 +31,9 @@ export function clearAuthCookies(): void {
 
 export function getRoleFromCookie(): UserRole | null {
   if (typeof document === 'undefined') return null;
-  const match = document.cookie.match(new RegExp(`(?:^|; )${ROLE_COOKIE}=([^;]*)`));
+  const match = document.cookie.match(
+    new RegExp(`(?:^|; )${ROLE_COOKIE}=([^;]*)`),
+  );
   const value = match?.[1];
   if (isUserRole(value)) {
     return value;

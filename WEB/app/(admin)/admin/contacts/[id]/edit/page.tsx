@@ -1,14 +1,15 @@
 'use client';
 
+import Link from 'next/link';
+import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useContact, useUpdateContact } from '@/hooks/use-contacts';
 import type { LeadQualifier } from '@/lib/types';
-import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
 
 export default function ContactEditPage() {
   const params = useParams<{ id: string }>();
@@ -83,12 +84,38 @@ export default function ContactEditPage() {
                 {error}
               </p>
             ) : null}
-            <Input label="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
-            <Input label="Company" value={company} onChange={(e) => setCompany(e.target.value)} />
-            <Input label="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
-            <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-            <Input label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
-            <Input label="Website" value={website} onChange={(e) => setWebsite(e.target.value)} />
+            <Input
+              label="Full name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              required
+            />
+            <Input
+              label="Company"
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
+            />
+            <Input
+              label="Title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+            <Input
+              label="Email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <Input
+              label="Phone"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+            />
+            <Input
+              label="Website"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+            />
             <div>
               <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-text-tertiary">
                 Lead qualifier
@@ -96,7 +123,9 @@ export default function ContactEditPage() {
               <select
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 value={leadQualifier}
-                onChange={(e) => setLeadQualifier(e.target.value as LeadQualifier | '')}
+                onChange={(e) =>
+                  setLeadQualifier(e.target.value as LeadQualifier | '')
+                }
               >
                 <option value="">Unqualified</option>
                 <option value="hot">Hot</option>

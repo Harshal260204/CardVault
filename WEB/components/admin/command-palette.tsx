@@ -1,11 +1,5 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/stores/auth-store';
-import { useThemeStore } from '@/stores/theme-store';
-import { isPlatformSuperAdmin } from '@/lib/roles';
-import { cn } from '@/lib/utils';
 import {
   Search,
   LayoutDashboard,
@@ -21,12 +15,19 @@ import {
   Moon,
   LogOut,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState, useRef } from 'react';
+
+import { isPlatformSuperAdmin } from '@/lib/roles';
+import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/stores/auth-store';
+import { useThemeStore } from '@/stores/theme-store';
 
 interface CommandItem {
   id: string;
   title: string;
   category: string;
-  icon: any;
+  icon: React.ElementType;
   action: () => void;
 }
 
@@ -39,7 +40,7 @@ export function CommandPalette() {
   const logout = useAuthStore((s) => s.logout);
   const theme = useThemeStore((s) => s.theme);
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
-  
+
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -73,7 +74,10 @@ export function CommandPalette() {
   // Click outside to close
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
@@ -170,9 +174,10 @@ export function CommandPalette() {
     },
   ];
 
-  const filteredCommands = commands.filter((cmd) =>
-    cmd.title.toLowerCase().includes(search.toLowerCase()) ||
-    cmd.category.toLowerCase().includes(search.toLowerCase())
+  const filteredCommands = commands.filter(
+    (cmd) =>
+      cmd.title.toLowerCase().includes(search.toLowerCase()) ||
+      cmd.category.toLowerCase().includes(search.toLowerCase()),
   );
 
   // Navigate with keyboard keys
@@ -184,7 +189,10 @@ export function CommandPalette() {
       setSelectedIndex((prev) => (prev + 1) % filteredCommands.length);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setSelectedIndex((prev) => (prev - 1 + filteredCommands.length) % filteredCommands.length);
+      setSelectedIndex(
+        (prev) =>
+          (prev - 1 + filteredCommands.length) % filteredCommands.length,
+      );
     } else if (e.key === 'Enter') {
       e.preventDefault();
       if (filteredCommands[selectedIndex]) {
@@ -205,7 +213,10 @@ export function CommandPalette() {
       >
         {/* Search header */}
         <div className="p-4 border-b border-border/80 flex items-center gap-3">
-          <Search className="h-4.5 w-4.5 text-text-tertiary shrink-0" aria-hidden="true" />
+          <Search
+            className="h-4.5 w-4.5 text-text-tertiary shrink-0"
+            aria-hidden="true"
+          />
           <input
             ref={inputRef}
             type="text"
@@ -240,11 +251,14 @@ export function CommandPalette() {
                     'flex items-center justify-between px-3 py-2 text-sm rounded-md cursor-pointer transition-colors duration-100',
                     isSelected
                       ? 'bg-zinc-100 dark:bg-zinc-800 text-text-primary font-medium'
-                      : 'text-text-secondary hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20'
+                      : 'text-text-secondary hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20',
                   )}
                 >
                   <div className="flex items-center gap-3">
-                    <Icon className="h-4 w-4 shrink-0 text-text-tertiary" aria-hidden="true" />
+                    <Icon
+                      className="h-4 w-4 shrink-0 text-text-tertiary"
+                      aria-hidden="true"
+                    />
                     <span>{cmd.title}</span>
                   </div>
                   <span className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">
@@ -264,9 +278,13 @@ export function CommandPalette() {
         <div className="border-t border-border/80 px-4 py-2.5 bg-zinc-50/50 dark:bg-zinc-900/50 flex items-center justify-between text-[11px] text-text-tertiary">
           <div className="flex items-center gap-2">
             <span>Navigation:</span>
-            <kbd className="border border-border/80 px-1 py-0.2 rounded bg-surface">↑↓</kbd>
+            <kbd className="border border-border/80 px-1 py-0.2 rounded bg-surface">
+              ↑↓
+            </kbd>
             <span>Select:</span>
-            <kbd className="border border-border/80 px-1 py-0.2 rounded bg-surface">Enter</kbd>
+            <kbd className="border border-border/80 px-1 py-0.2 rounded bg-surface">
+              Enter
+            </kbd>
           </div>
           <span>⌘K or Ctrl+K to toggle</span>
         </div>

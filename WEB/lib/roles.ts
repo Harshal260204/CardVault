@@ -14,7 +14,9 @@ export const PLATFORM_SUPER_ADMIN_ROLES: UserRole[] = ['platform_super_admin'];
 /** Roles allowed to use the MOBILE field app */
 export const MOBILE_APP_ROLES: UserRole[] = ['employee', 'manager'];
 
-export function isWebAdminRole(role: string | undefined | null): role is UserRole {
+export function isWebAdminRole(
+  role: string | undefined | null,
+): role is UserRole {
   return role != null && (WEB_ADMIN_ROLES as string[]).includes(role);
 }
 
@@ -43,7 +45,9 @@ export function formatRoleLabel(role: UserRole | string): string {
   }
 }
 
-export function isUserRole(value: string | undefined | null): value is UserRole {
+export function isUserRole(
+  value: string | undefined | null,
+): value is UserRole {
   return (
     value === 'employee' ||
     value === 'manager' ||

@@ -145,7 +145,8 @@ export interface ConfirmDialogProps {
   cancelLabel?: string;
   loading?: boolean;
   onConfirm: () => void;
-  onCancel: () => void;
+  onCancel?: () => void;
+  onClose?: () => void;
 }
 
 export function ConfirmDialog({
@@ -157,11 +158,13 @@ export function ConfirmDialog({
   loading = false,
   onConfirm,
   onCancel,
+  onClose,
 }: ConfirmDialogProps) {
+  const handleCancel = onClose ?? onCancel ?? (() => {});
   return (
     <Modal
       open={open}
-      onClose={onCancel}
+      onClose={handleCancel}
       title={title}
       dismissible={!loading}
       footer={
@@ -169,7 +172,7 @@ export function ConfirmDialog({
           <button
             type="button"
             className="inline-flex h-9 items-center rounded-lg px-3 text-sm font-medium text-foreground hover:bg-neutral-100"
-            onClick={onCancel}
+            onClick={handleCancel}
             disabled={loading}
           >
             {cancelLabel}

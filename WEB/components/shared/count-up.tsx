@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from 'react';
 
-export function CountUp({ value, duration = 600 }: { value: number; duration?: number }) {
+export function CountUp({
+  value,
+  duration = 600,
+}: {
+  value: number;
+  duration?: number;
+}) {
   const [display, setDisplay] = useState(0);
 
   useEffect(() => {

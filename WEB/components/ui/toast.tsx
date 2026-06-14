@@ -13,7 +13,7 @@ export function ToastViewport() {
 
   return (
     <div
-      className="pointer-events-none fixed bottom-4 right-4 z-[100] flex w-full max-w-sm flex-col gap-2"
+      className="pointer-events-none fixed bottom-5 right-5 z-[60] flex w-full max-w-xs flex-col gap-2"
       aria-live="polite"
       aria-relevant="additions"
     >
@@ -22,17 +22,22 @@ export function ToastViewport() {
           key={toast.id}
           role="status"
           className={cn(
-            'pointer-events-auto rounded-lg border px-4 py-3 text-sm shadow-modal',
+            'pointer-events-auto rounded-lg border px-4 py-3 text-sm shadow-modal animate-toast-in',
             toast.variant === 'error'
-              ? 'border-error/30 bg-red-50 text-red-800'
-              : 'border-success/30 bg-green-50 text-green-800',
+              ? 'bg-error-bg border border-error-border text-error-text'
+              : 'bg-neutral-900 border border-neutral-700 text-white',
           )}
         >
           <div className="flex items-start justify-between gap-3">
             <p>{toast.message}</p>
             <button
               type="button"
-              className="text-xs font-medium opacity-70 hover:opacity-100"
+              className={cn(
+                'text-xs font-medium opacity-70 hover:opacity-100 focus:outline-none',
+                toast.variant === 'error'
+                  ? 'text-error-text'
+                  : 'text-neutral-400 hover:text-white',
+              )}
               onClick={() => dismiss(toast.id)}
               aria-label="Dismiss notification"
             >

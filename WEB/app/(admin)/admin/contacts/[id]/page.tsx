@@ -1,5 +1,9 @@
 'use client';
 
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { useState } from 'react';
+
 import { PageHeader } from '@/components/layout/page-header';
 import { LeadBadge } from '@/components/shared/lead-badge';
 import { Badge } from '@/components/ui/badge';
@@ -10,9 +14,6 @@ import { useContact, useUpdateContact } from '@/hooks/use-contacts';
 import { api } from '@/lib/api';
 import { mergeContacts } from '@/lib/api-client';
 import { formatCaptureMode } from '@/lib/format';
-import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { useState } from 'react';
 
 export default function ContactDetailPage() {
   const params = useParams<{ id: string }>();
@@ -79,7 +80,9 @@ export default function ContactDetailPage() {
         <Card>
           <CardContent className="space-y-4 p-6">
             <div className="flex flex-wrap gap-2">
-              <Badge variant="accent">{formatCaptureMode(contact.captureMode)}</Badge>
+              <Badge variant="accent">
+                {formatCaptureMode(contact.captureMode)}
+              </Badge>
               <LeadBadge qualifier={contact.leadQualifier} />
               {contact.encounterType ? (
                 <Badge variant="default">{contact.encounterType}</Badge>
@@ -89,11 +92,15 @@ export default function ContactDetailPage() {
             <dl className="space-y-3 text-sm">
               <div>
                 <dt className="text-text-tertiary">Company</dt>
-                <dd className="font-medium text-foreground">{contact.company ?? '—'}</dd>
+                <dd className="font-medium text-foreground">
+                  {contact.company ?? '—'}
+                </dd>
               </div>
               <div>
                 <dt className="text-text-tertiary">Title</dt>
-                <dd className="font-medium text-foreground">{contact.title ?? '—'}</dd>
+                <dd className="font-medium text-foreground">
+                  {contact.title ?? '—'}
+                </dd>
               </div>
               <div>
                 <dt className="text-text-tertiary">Emails</dt>
@@ -109,11 +116,15 @@ export default function ContactDetailPage() {
               </div>
               <div>
                 <dt className="text-text-tertiary">Website</dt>
-                <dd className="font-medium text-foreground">{contact.website ?? '—'}</dd>
+                <dd className="font-medium text-foreground">
+                  {contact.website ?? '—'}
+                </dd>
               </div>
               <div>
                 <dt className="text-text-tertiary">Notes</dt>
-                <dd className="font-medium text-foreground">{contact.notes ?? '—'}</dd>
+                <dd className="font-medium text-foreground">
+                  {contact.notes ?? '—'}
+                </dd>
               </div>
               <div>
                 <dt className="text-text-tertiary">Created</dt>
@@ -127,10 +138,12 @@ export default function ContactDetailPage() {
 
         <Card>
           <CardContent className="space-y-4 p-6">
-            <h2 className="text-lg font-semibold text-foreground">Merge duplicate</h2>
+            <h2 className="text-lg font-semibold text-foreground">
+              Merge duplicate
+            </h2>
             <p className="text-sm text-text-secondary">
-              Merge another contact into this record. The source contact will be absorbed and this
-              contact will remain.
+              Merge another contact into this record. The source contact will be
+              absorbed and this contact will remain.
             </p>
             {mergeError ? (
               <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -147,7 +160,11 @@ export default function ContactDetailPage() {
               value={mergeSourceId}
               onChange={(e) => setMergeSourceId(e.target.value)}
             />
-            <Button onClick={handleMerge} loading={isMerging} disabled={updateContact.isPending}>
+            <Button
+              onClick={handleMerge}
+              loading={isMerging}
+              disabled={updateContact.isPending}
+            >
               Merge into this contact
             </Button>
           </CardContent>

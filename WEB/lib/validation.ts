@@ -10,6 +10,7 @@ export type LoginFormValues = z.infer<typeof loginSchema>;
 export const contactSearchSchema = z.object({
   q: z.string().optional(),
   mode: z.enum(['visitor', 'exhibitor', 'quick_capture', 'legacy']).optional(),
+  leadQualifier: z.enum(['hot', 'warm', 'cold']).optional(),
   sessionId: z.string().uuid().optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -22,7 +23,9 @@ export const createContactSchema = z.object({
   company: z.string().max(200).optional(),
   title: z.string().max(200).optional(),
   email: z.string().email().optional().or(z.literal('')),
-  captureMode: z.enum(['visitor', 'exhibitor', 'quick_capture', 'legacy']).optional(),
+  captureMode: z
+    .enum(['visitor', 'exhibitor', 'quick_capture', 'legacy'])
+    .optional(),
   leadQualifier: z.enum(['hot', 'warm', 'cold']).optional(),
 });
 

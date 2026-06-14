@@ -19,24 +19,24 @@ npm run dev
 
 Password: `Password123!`
 
-| Email | Role |
-|-------|------|
-| manager@cardvault.local | manager |
-| admin@cardvault.local | platform_super_admin |
+| Email                   | Role                 |
+| ----------------------- | -------------------- |
+| manager@cardvault.local | manager              |
+| admin@cardvault.local   | platform_super_admin |
 
 Open http://localhost:3000 → redirects to `/admin/dashboard`.
 
 ## Routes
 
-| Route | Purpose |
-|-------|---------|
-| `/login` | Admin sign-in |
-| `/admin/dashboard` | Stats and overview |
-| `/admin/analytics` | Lead funnel, encounter types, session metrics |
-| `/admin/contacts` | Org-wide contact list and detail |
-| `/admin/sessions` | Event session management |
-| `/admin/users` | User management |
-| `/admin/audit-log` | Audit events |
-| `/admin/export` | Export jobs and download |
-| `/admin/billing` | Subscription and Stripe portal |
-| `/admin/organizations` | Platform super admin — all tenants |
+| Route                  | Purpose                                       |
+| ---------------------- | --------------------------------------------- |
+| `/login`               | Admin sign-in                                 |
+| `/admin/dashboard`     | Stats and overview                            |
+| `/admin/analytics`     | Lead funnel, encounter types, session metrics |
+| `/admin/contacts`      | Org-wide contact list and detail              |
+| `/admin/sessions`      | Event session management                      |
+| `/admin/users`         | User management                               |
+| `/admin/audit-log`     | Audit events                                  |
+| `/admin/export`        | Export jobs and download                      |
+| `/admin/billing`       | Subscription and Stripe portal                |
+| `/admin/organizations` | Platform super admin — all tenants            |

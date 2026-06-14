@@ -13,15 +13,23 @@ export function BarChart({ data, className }: BarChartProps) {
   return (
     <div className={cn('flex items-end justify-between gap-2', className)}>
       {data.map((item) => (
-        <div key={item.label} className="flex flex-1 flex-col items-center gap-2">
+        <div
+          key={item.label}
+          className="flex flex-1 flex-col items-center gap-2"
+        >
           <div className="flex h-32 w-full items-end justify-center">
             <div
-              className={cn('w-full max-w-[48px] rounded-t-md transition-all', item.color ?? 'bg-accent')}
+              className={cn(
+                'w-full max-w-[48px] rounded-t-md transition-all',
+                item.color ?? 'bg-accent',
+              )}
               style={{ height: `${Math.max((item.value / max) * 100, 4)}%` }}
               title={`${item.value}`}
             />
           </div>
-          <span className="text-center text-[10px] font-medium text-muted">{item.label}</span>
+          <span className="text-center text-[10px] font-medium text-muted">
+            {item.label}
+          </span>
         </div>
       ))}
     </div>

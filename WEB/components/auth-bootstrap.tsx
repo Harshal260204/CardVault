@@ -1,9 +1,10 @@
 'use client';
 
+import { useEffect, type ReactNode } from 'react';
+
 import { useAuthProfile } from '@/hooks/use-auth-profile';
 import { STORAGE_KEYS } from '@/lib/constants';
 import { useAuthStore } from '@/stores/auth-store';
-import { useEffect, type ReactNode } from 'react';
 
 export function AuthBootstrap({ children }: { children: ReactNode }) {
   const status = useAuthStore((s) => s.status);

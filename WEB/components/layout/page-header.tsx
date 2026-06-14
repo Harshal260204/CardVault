@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+
 import type { ReactNode } from 'react';
 
 interface PageHeaderProps {
@@ -8,12 +9,24 @@ interface PageHeaderProps {
   className?: string;
 }
 
-export function PageHeader({ title, description, action, className }: PageHeaderProps) {
+export function PageHeader({
+  title,
+  description,
+  action,
+  className,
+}: PageHeaderProps) {
   return (
-    <header className={cn('flex items-start justify-between gap-4 px-4 py-4', className)}>
+    <header
+      className={cn(
+        'flex items-start justify-between gap-4 px-4 py-4',
+        className,
+      )}
+    >
       <div>
         <h1 className="text-xl font-semibold text-foreground">{title}</h1>
-        {description ? <p className="mt-1 text-sm text-muted">{description}</p> : null}
+        {description ? (
+          <p className="mt-1 text-sm text-muted">{description}</p>
+        ) : null}
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
     </header>
